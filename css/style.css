@@ -160,42 +160,80 @@ h1 {
     left: 0;
     width: 100%;
     height: 100%;
-    padding: 100px 2rem 2rem 2rem; /* Top padding for nav */
+    padding: 80px 2rem 4rem 2rem; /* Top padding for nav */
     box-sizing: border-box;
     color: #e3e4ff;
-    overflow-y: auto;
-    transition: opacity 0.5s ease, transform 0.5s ease;
-    /* background: rgba(0, 0, 0, 0.8); */ /* Removed dark background */
-    background: transparent; 
-    /* backdrop-filter: blur(10px); */ /* Optional: remove blur if you want it crystal clear */
+    overflow-y: auto !important; /* Force enable scrolling */
+    overflow-x: hidden;
+    transition: opacity 0.5s ease, transform 0.5s ease, visibility 0s linear 0s;
+    background: rgba(0, 0, 0, 0.25); /* Light overlay - just slightly darker than Field */
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    pointer-events: auto;
+    z-index: 5; /* Above canvas */
+    visibility: visible;
 }
 
 .view-container.hidden {
     opacity: 0;
-    pointer-events: none;
+    pointer-events: none !important;
     transform: scale(0.95);
+    visibility: hidden; /* Completely hide and prevent any interaction */
+}
+
+/* View container visible state - transition for smooth appearance */
+.view-container:not(.hidden) {
+    opacity: 1;
+    pointer-events: auto;
+    transform: scale(1);
+    visibility: visible;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+/* Gallery specific */
+#gallery-view {
+    padding-bottom: 100px; /* Extra padding at bottom for scrolling */
+    z-index: 6;
+}
+
+#gallery-view h2 {
+    font-family: 'Doto', sans-serif;
+    font-size: 3rem;
+    margin: 0 0 2rem 0;
+    font-weight: 400;
 }
 
 .gallery-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 2rem;
-    margin-top: 2rem;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
 }
 
 .gallery-item {
     aspect-ratio: 1;
     border: 1px solid rgba(227, 228, 255, 0.3);
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     transition: all 0.3s ease;
     cursor: pointer;
+    position: relative;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 1rem;
+    text-align: center;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    /* pointer-events inherited from parent */
 }
 
 .gallery-item:hover {
     background: rgba(227, 228, 255, 0.1);
     border-color: #e3e4ff;
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
 /* Search Overlay */
@@ -464,7 +502,7 @@ h1 {
 @media (max-width: 768px) {
     .contact-container {
         grid-template-columns: 1fr;
-        gap: 1.5rem; /* Reduced from 2rem */
+        gap: 1.5rem;
         text-align: left;
     }
     
@@ -473,23 +511,387 @@ h1 {
     }
     
     .contact-header h2 {
-        font-size: 12vw; /* Reduced from 15vw */
+        font-size: 12vw;
     }
     
     .contact-content {
         border-left: none;
         border-top: 1px solid rgba(227, 228, 255, 0.15);
         padding-left: 0;
-        padding-top: 1.5rem; /* Reduced from 2rem */
+        padding-top: 1.5rem;
         min-height: auto;
     }
     
     #contact-close {
         position: relative;
-        margin-top: 1.5rem; /* Reduced from 2rem */
+        margin-top: 1.5rem;
         width: fit-content;
     }
 }
+
+/* ========================================
+   COLLECTED KEYWORDS BAR (Field View Only)
+   ======================================== */
+
+.collected-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 2rem 2rem 1.5rem 2rem;
+    box-sizing: border-box;
+    overflow: hidden; /* Hide overflow for scrolling effect */
+    z-index: 15;
+    /* Transparent gradient like Menu */
+    background: linear-gradient(to top, 
+        rgba(10, 15, 20, 0.6) 0%, 
+        rgba(10, 15, 20, 0.3) 50%,
+        transparent 100%
+    );
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.5s ease;
+    pointer-events: none;
+}
+
+.collected-words-inner {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+    min-width: 100%;
+}
+
+.collected-bar.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Hide collected bar when not in Field view */
+.collected-bar.hidden-view {
+    opacity: 0 !important;
+    transform: translateY(20px) !important;
+    pointer-events: none !important;
+}
+
+.collected-word {
+    font-family: 'Azeret Mono', monospace;
+    font-size: 0.9rem;
+    color: #5BC0BE;
+    padding: 0.5rem 1rem;
+    border: 1px solid rgba(91, 192, 190, 0.4);
+    background: rgba(91, 192, 190, 0.1);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    backdrop-filter: blur(5px);
+    flex-shrink: 0; /* Prevent words from shrinking */
+}
+
+.word-connector {
+    color: rgba(91, 192, 190, 0.6);
+    margin: 0 0.5rem;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+/* ========================================
+   UNLOCK ANIMATION SYSTEM
+   ======================================== */
+
+/* Blur Overlay - Base layer for unlock sequence */
+.unlock-blur-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 49;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+}
+
+/* Sentence Overlay */
+.sentence-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 50;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.sentence-overlay.no-bg {
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+.full-sentence {
+    font-family: 'Azeret Mono', monospace;
+    font-size: 1.8rem;
+    color: #e3e4ff;
+    text-align: center;
+    max-width: 80%;
+    line-height: 2.2;
+    font-weight: 200;
+    letter-spacing: 0.05em;
+}
+
+.full-sentence .highlight-word {
+    color: #66CCCC;
+    text-shadow: 0 0 20px rgba(102, 204, 204, 0.6);
+    font-weight: 400;
+}
+
+/* Particle Containers */
+.particle-container,
+.title-particle-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 52;
+    pointer-events: none;
+}
+
+/* Dissolve Particles (sentence -> name) */
+.dissolve-particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: #e3e4ff;
+    border-radius: 50%;
+    opacity: 0;
+    box-shadow: 0 0 10px rgba(227, 228, 255, 0.8),
+                0 0 20px rgba(227, 228, 255, 0.4);
+}
+
+/* Converging Particles (form the title) */
+.converge-particle {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    background: #66CCCC;
+    border-radius: 50%;
+    box-shadow: 0 0 8px rgba(102, 204, 204, 0.8),
+                0 0 15px rgba(102, 204, 204, 0.4);
+}
+
+/* ========================================
+   PROJECT NAME REVEAL (Unlock Animation)
+   ======================================== */
+
+.project-name-reveal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 53;
+    text-align: center;
+    pointer-events: none;
+}
+
+.project-title-reveal {
+    font-family: 'Doto', sans-serif;
+    font-size: 8vw;
+    color: #e3e4ff;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin: 0;
+    text-shadow: 0 0 60px rgba(227, 228, 255, 0.6),
+                 0 0 120px rgba(227, 228, 255, 0.3);
+    white-space: nowrap;
+}
+
+/* ========================================
+   PROJECT DETAIL VIEW
+   ======================================== */
+
+#project-detail-view {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    /* Light overlay - same as Gallery */
+    background: rgba(0, 0, 0, 0.25);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 55; /* Higher than unlock animations */
+    overflow-y: scroll !important; /* Force enable scrolling */
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    transition: opacity 0.5s ease, visibility 0s linear 0s;
+    padding: 0;
+    box-sizing: border-box;
+    visibility: visible;
+}
+
+#project-detail-view.hidden {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transition: opacity 0.5s ease, visibility 0s linear 0.5s;
+}
+
+.project-detail-container {
+    width: 90%;
+    max-width: 1200px;
+    color: #e3e4ff;
+    padding: 100px 2rem 100px 2rem; /* More padding for scroll space */
+    margin: 0 auto;
+    min-height: 100vh; /* Ensure it can scroll */
+}
+
+.back-button {
+    background: transparent;
+    border: none;
+    color: rgba(227, 228, 255, 0.6);
+    font-family: 'Azeret Mono', monospace;
+    font-size: 1rem;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 3rem;
+    transition: all 0.3s ease;
+    padding: 0;
+}
+
+.back-button:hover {
+    color: #e3e4ff;
+    text-shadow: 0 0 10px rgba(227, 228, 255, 0.5);
+}
+
+.project-detail-header {
+    margin-bottom: 3rem;
+}
+
+.project-detail-title {
+    font-family: 'Doto', sans-serif;
+    font-size: 6vw;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    line-height: 1;
+}
+
+.project-detail-year {
+    font-family: 'Azeret Mono', monospace;
+    font-size: 1rem;
+    color: rgba(227, 228, 255, 0.5);
+    margin-top: 1rem;
+    display: block;
+}
+
+.project-detail-body {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 4rem;
+    margin-top: 2rem;
+    padding-bottom: 200px; /* Extra space at bottom for scrolling */
+}
+
+.project-detail-description {
+    font-size: 1.2rem;
+    line-height: 1.8;
+    font-weight: 200;
+    opacity: 0.9;
+}
+
+.project-detail-keywords-section {
+    padding-left: 2rem;
+    border-left: 1px solid rgba(227, 228, 255, 0.2);
+}
+
+.keywords-label {
+    font-family: 'Azeret Mono', monospace;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: rgba(227, 228, 255, 0.5);
+    letter-spacing: 0.1em;
+    display: block;
+    margin-bottom: 1rem;
+}
+
+.project-detail-keywords {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.detail-keyword {
+    font-family: 'Azeret Mono', monospace;
+    font-size: 0.9rem;
+    color: #408F98;
+    padding: 0.4rem 0.8rem;
+    border: 1px solid rgba(64, 143, 152, 0.4);
+    background: rgba(64, 143, 152, 0.1);
+    text-transform: uppercase;
+}
+
+/* ========================================
+   GALLERY SECTIONS
+   ======================================== */
+
+.gallery-section {
+    margin-bottom: 4rem;
+}
+
+.section-title {
+    font-family: 'Doto', sans-serif;
+    font-size: 2rem;
+    margin: 0 0 0.5rem 0;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.section-subtitle {
+    font-size: 0.9rem;
+    color: rgba(227, 228, 255, 0.5);
+    margin: 0 0 2rem 0;
+}
+
+#collected-section {
+    display: none; /* Hidden by default, shown when there are collected projects */
+}
+
+#collected-section.has-items {
+    display: block;
+}
+
+.collected-project-item {
+    position: relative;
+}
+
+.collected-project-item .used-keywords {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 0.5rem;
+    font-size: 0.65rem;
+    color: rgba(64, 143, 152, 0.9);
+    background: rgba(0, 0, 0, 0.6);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-sizing: border-box;
+}
+
+/* ========================================
+   BACK BUTTON (General)
+   ======================================== */
 
 .back-btn {
     background: transparent;
@@ -510,4 +912,32 @@ h1 {
 
 .about-content {
     max-width: 800px;
+}
+
+/* Mobile Responsive for Project Detail */
+@media (max-width: 768px) {
+    .project-detail-title {
+        font-size: 10vw;
+    }
+    
+    .project-detail-body {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+    
+    .project-detail-keywords-section {
+        padding-left: 0;
+        padding-top: 2rem;
+        border-left: none;
+        border-top: 1px solid rgba(227, 228, 255, 0.2);
+    }
+    
+    .full-sentence {
+        font-size: 1.2rem;
+        padding: 0 2rem;
+    }
+    
+    .project-title-reveal {
+        font-size: 12vw;
+    }
 }

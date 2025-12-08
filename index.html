@@ -44,12 +44,26 @@
         <!-- Views -->
         <div id="gallery-view" class="view-container hidden">
             <h2>Gallery</h2>
-            <div class="gallery-grid">
-                <!-- Content will be populated dynamically or static placeholders -->
-                <div class="gallery-item">Work 01</div>
-                <div class="gallery-item">Work 02</div>
-                <div class="gallery-item">Work 03</div>
-                <div class="gallery-item">Work 04</div>
+            
+            <!-- Collected Projects Section -->
+            <div id="collected-section" class="gallery-section">
+                <h3 class="section-title">Collected</h3>
+                <p class="section-subtitle">Projects you've discovered in the Field</p>
+                <div id="collected-grid" class="gallery-grid">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+            
+            <!-- All Projects Section -->
+            <div id="all-projects-section" class="gallery-section">
+                <h3 class="section-title">All Works</h3>
+                <div class="gallery-grid">
+                    <div class="gallery-item" data-project="echo-chamber">ECHO CHAMBER</div>
+                    <div class="gallery-item" data-project="flux-state">FLUX STATE</div>
+                    <div class="gallery-item" data-project="void-interface">VOID INTERFACE</div>
+                    <div class="gallery-item" data-project="particle-memory">PARTICLE MEMORY</div>
+                    <div class="gallery-item" data-project="signal-noise">SIGNAL / NOISE</div>
+                </div>
             </div>
         </div>
 
@@ -75,6 +89,7 @@
             <a href="#" class="menu-item" id="menu-about">About</a>
             <a href="#" class="menu-item" id="menu-contact">Contact</a>
             <a href="#" class="menu-item" id="menu-find">Find Yourself</a>
+            <a href="#" class="menu-item" id="menu-reset">Reset Progress</a>
             <a href="#" class="menu-item close-item" id="menu-close">Close</a>
         </div>
     </div>
@@ -97,6 +112,29 @@
             </div>
             <button id="contact-close">Close</button>
         </div>
+    </div>
+
+    <!-- Project Detail View -->
+    <div id="project-detail-view" class="overlay hidden">
+        <div class="project-detail-container">
+            <button id="project-detail-back" class="back-button">← Back</button>
+            <div class="project-detail-header">
+                <h1 class="project-detail-title"></h1>
+                <span class="project-detail-year"></span>
+            </div>
+            <div class="project-detail-body">
+                <p class="project-detail-description"></p>
+                <div class="project-detail-keywords-section">
+                    <span class="keywords-label">Discovered with:</span>
+                    <div class="project-detail-keywords"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Keywords Bar (for Field view) -->
+    <div id="collected-keywords-bar" class="collected-bar">
+        <!-- Dynamically populated -->
     </div>
 
     <div id="cursor">
