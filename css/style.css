@@ -713,8 +713,38 @@ h1 {
     text-shadow: 0 0 60px rgba(227, 228, 255, 0.6),
                  0 0 120px rgba(227, 228, 255, 0.3);
     white-space: nowrap;
-    /* Smooth font-size transition */
-    transition: font-size 1.2s cubic-bezier(0.65, 0, 0.35, 1);
+    /* Remove transition - now controlled by JS scroll */
+}
+
+/* Scroll hint for project reveal */
+.scroll-hint {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 54;
+    text-align: center;
+    pointer-events: none;
+}
+
+.scroll-hint-text {
+    font-family: 'Azeret Mono', monospace;
+    font-size: 0.75rem;
+    color: rgba(227, 228, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    margin-bottom: 0.5rem;
+}
+
+.scroll-hint-arrow {
+    font-size: 1.5rem;
+    color: rgba(227, 228, 255, 0.5);
+    animation: scrollBounce 1.5s ease-in-out infinite;
+}
+
+@keyframes scrollBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(8px); }
 }
 
 /* ========================================

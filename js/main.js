@@ -919,18 +919,73 @@ function showProjectNameWithParticles(project, blurOverlay) {
         particleContainer.remove();
     }, 2000);
     
-    // Phase 4: Transition to project detail
+    // Phase 4: Title stays centered, waits for scroll
     setTimeout(() => {
-        transitionToProjectDetail(project, nameOverlay, blurOverlay);
+        setupScrollDrivenTransition(project, nameOverlay, blurOverlay);
     }, 2500);
 }
 
-function transitionToProjectDetail(project, nameOverlay, blurOverlay) {
-    // Target position: top-left corner (like jessiewu-archive style)
-    const targetTop = '140px';
-    const targetLeft = '60px';
+// Scroll-driven title animation (like paprikawang)
+function setupScrollDrivenTransition(project, nameOverlay, blurOverlay) {
+    // Create a scroll container that will drive the animation
+    const scrollDriver = document.createElement('div');
+    scrollDriver.id = 'scroll-driver';
+    scrollDriver.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 300vh;
+        z-index: 52;
+        overflow-y: auto;
+        overflow-x: hidden;
+    `;
     
-    // Prepare project detail view (hidden but populated)
+    // Inner content to make it scrollable
+    const scrollContent = document.createElement('div');
+    scrollContent.style.cssText = `
+        height: 300vh;
+        width: 100%;
+    `;
+    scrollDriver.appendChild(scrollContent);
+    
+    // Add scroll hint
+    const scrollHint = document.createElement('div');
+    scrollHint.className = 'scroll-hint';
+    scrollHint.innerHTML = `
+        <div class="scroll-hint-text">SCROLL TO CONTINUE</div>
+        <div class="scroll-hint-arrow">↓</div>
+    `;
+    document.body.appendChild(scrollHint);
+    
+    // Animate scroll hint in
+    gsap.fromTo(scrollHint, 
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, duration: 0.8, delay: 0.5 }
+    );
+    
+    document.body.appendChild(scrollDriver);
+    
+    // Get title element for font-size animation
+    const titleReveal = nameOverlay.querySelector('.project-title-reveal');
+    
+    // Initial values (center of screen)
+    const startTop = window.innerHeight / 2;
+    const startLeft = window.innerWidth / 2;
+    const startFontSize = window.innerWidth * 0.08; // 8vw
+    
+    // Target values (top-left corner)
+    const targetTop = 140;
+    const targetLeft = 60;
+    const targetFontSize = 48; // 3rem = 48px
+    
+    // Scroll threshold (when animation completes)
+    const scrollThreshold = window.innerHeight * 0.8;
+    
+    let animationComplete = false;
+    let lastProgress = 0;
+    
+    // Prepare project detail view content (hidden)
     const detailView = document.getElementById('project-detail-view');
     const titleEl = detailView.querySelector('.project-detail-title');
     const yearEl = detailView.querySelector('.project-detail-year');
@@ -945,84 +1000,162 @@ function transitionToProjectDetail(project, nameOverlay, blurOverlay) {
     const usedKeywords = state.collectedWords;
     keywordsEl.innerHTML = usedKeywords.map(k => `<span class="detail-keyword">${k}</span>`).join('');
     
-    // Make detail title invisible initially (we'll use the animated one)
+    // Hide detail title initially
     titleEl.style.opacity = '0';
     
-    // Get the h1 element inside nameOverlay for font-size animation
-    const titleReveal = nameOverlay.querySelector('.project-title-reveal');
-    
-    // Animate title to top-left corner with smooth easing
-    // First, reset the transform so we can use top/left directly
-    gsap.to(nameOverlay, {
-        top: targetTop,
-        left: targetLeft,
-        xPercent: 0,
-        yPercent: 0,
-        x: 0,
-        y: 0,
-        duration: 1.2,
-        ease: "power3.inOut"
-    });
-    
-    // Animate font-size separately for smoother text scaling
-    gsap.to(titleReveal, {
-        fontSize: '3rem',
-        duration: 1.2,
-        ease: "power3.inOut"
-    });
-    
-    // Fade in the rest of the detail view
-    setTimeout(() => {
-        // Show detail view
-        detailView.classList.remove('hidden');
-        detailView.style.opacity = '0';
+    // Scroll handler
+    function onScroll() {
+        const scrollY = scrollDriver.scrollTop;
+        const progress = Math.min(scrollY / scrollThreshold, 1);
         
-        // Keep blur overlay during transition
-        gsap.to(blurOverlay, {
-            opacity: 0,
-            duration: 0.8,
-            onComplete: () => blurOverlay.remove()
-        });
+        // Easing function for smooth animation
+        const easedProgress = easeInOutCubic(progress);
         
-        // Fade in detail view
-        gsap.to(detailView, {
-            opacity: 1,
-            duration: 0.8,
-            ease: "power2.out"
-        });
+        // Fade out scroll hint as user scrolls
+        if (progress > 0 && progress < 0.3) {
+            scrollHint.style.opacity = 1 - (progress / 0.3);
+        } else if (progress >= 0.3) {
+            scrollHint.style.opacity = 0;
+        }
         
-        // Cross-fade the animated title to the static one
-        setTimeout(() => {
-            titleEl.style.opacity = '1';
-            titleEl.style.transition = 'opacity 0.3s ease';
-            
-            gsap.to(nameOverlay, {
-                opacity: 0,
-                duration: 0.3,
-                onComplete: () => {
-                    nameOverlay.remove();
-                    
-                    // Update state
-                    state.view = 'projectDetail';
-                    state.currentProjectDetail = project;
-                    state.fieldPhase = 'projectReveal';
-                    
-                    // Save project as collected
-                    state.collectedProjects[project.id] = {
-                        project: project,
-                        usedKeywords: [...state.collectedWords]
-                    };
-                    saveCollectedProjects();
-                    
-                    // Keep canvas visible (same as Gallery/About)
-                    document.getElementById('canvas-container').style.opacity = '0.7';
-                    
-                    updateVisibility();
-                }
-            });
-        }, 600);
-    }, 1000);
+        // Interpolate position
+        const currentTop = startTop + (targetTop - startTop) * easedProgress;
+        const currentLeft = startLeft + (targetLeft - startLeft) * easedProgress;
+        const currentFontSize = startFontSize + (targetFontSize - startFontSize) * easedProgress;
+        
+        // Apply transform
+        nameOverlay.style.top = currentTop + 'px';
+        nameOverlay.style.left = currentLeft + 'px';
+        nameOverlay.style.transform = `translate(${-50 * (1 - easedProgress)}%, ${-50 * (1 - easedProgress)}%)`;
+        titleReveal.style.fontSize = currentFontSize + 'px';
+        
+        // When scroll reaches threshold, complete the transition
+        if (progress >= 1 && !animationComplete) {
+            animationComplete = true;
+            completeScrollTransition(project, nameOverlay, blurOverlay, scrollDriver, scrollHint, detailView, titleEl);
+        }
+        
+        lastProgress = progress;
+    }
+    
+    scrollDriver.addEventListener('scroll', onScroll);
+    
+    // Also handle wheel event for smoother initial scroll
+    scrollDriver.addEventListener('wheel', (e) => {
+        if (!animationComplete) {
+            // Small nudge to start scrolling
+            scrollDriver.scrollTop += e.deltaY;
+        }
+    }, { passive: true });
 }
+
+function easeInOutCubic(t) {
+    return t < 0.5 
+        ? 4 * t * t * t 
+        : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function completeScrollTransition(project, nameOverlay, blurOverlay, scrollDriver, scrollHint, detailView, titleEl) {
+    // Remove scroll driver
+    scrollDriver.remove();
+    scrollHint.remove();
+    
+    // Fix title in final position
+    nameOverlay.style.position = 'fixed';
+    nameOverlay.style.top = '140px';
+    nameOverlay.style.left = '60px';
+    nameOverlay.style.transform = 'translate(0, 0)';
+    
+    // Fade out blur overlay
+    gsap.to(blurOverlay, {
+        opacity: 0,
+        duration: 0.6,
+        onComplete: () => blurOverlay.remove()
+    });
+    
+    // Show detail view with content sliding up
+    detailView.classList.remove('hidden');
+    detailView.style.opacity = '0';
+    
+    // Prepare content elements for slide-up animation
+    const container = detailView.querySelector('.project-detail-container');
+    const backButton = container.querySelector('.back-button');
+    const header = container.querySelector('.project-detail-header');
+    const body = container.querySelector('.project-detail-body');
+    
+    // Set initial states for slide-up
+    gsap.set([backButton, header, body], { 
+        opacity: 0, 
+        y: 40 
+    });
+    
+    // Fade in view background
+    gsap.to(detailView, {
+        opacity: 1,
+        duration: 0.5,
+        onComplete: () => {
+            // Slide up content elements with stagger
+            gsap.to(backButton, {
+                opacity: 1,
+                y: 0,
+                duration: 0.6,
+                ease: "power2.out"
+            });
+            
+            gsap.to(header, {
+                opacity: 1,
+                y: 0,
+                duration: 0.6,
+                delay: 0.1,
+                ease: "power2.out"
+            });
+            
+            gsap.to(body, {
+                opacity: 1,
+                y: 0,
+                duration: 0.6,
+                delay: 0.2,
+                ease: "power2.out"
+            });
+            
+            // Cross-fade to static title after content appears
+            setTimeout(() => {
+                titleEl.style.opacity = '1';
+                titleEl.style.transition = 'opacity 0.3s ease';
+                
+                gsap.to(nameOverlay, {
+                    opacity: 0,
+                    duration: 0.3,
+                    onComplete: () => {
+                        nameOverlay.remove();
+                        
+                        // Update state
+                        state.view = 'projectDetail';
+                        state.currentProjectDetail = project;
+                        state.fieldPhase = 'projectReveal';
+                        
+                        // Save project as collected
+                        state.collectedProjects[project.id] = {
+                            project: project,
+                            usedKeywords: [...state.collectedWords]
+                        };
+                        saveCollectedProjects();
+                        
+                        // Keep canvas visible
+                        document.getElementById('canvas-container').style.opacity = '0.7';
+                        
+                        updateVisibility();
+                    }
+                });
+            }, 400);
+        }
+    });
+}
+
+function transitionToProjectDetail(project, nameOverlay, blurOverlay) {
+    // This function is now replaced by scroll-driven transition
+    // Keeping for compatibility but redirecting to new system
+    setupScrollDrivenTransition(project, nameOverlay, blurOverlay);
 
 // --- Project Detail View ---
 
