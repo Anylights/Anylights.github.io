@@ -935,17 +935,19 @@ function setupScrollDrivenTransition(project, nameOverlay, blurOverlay) {
         top: 0;
         left: 0;
         width: 100%;
-        height: 300vh;
+        height: 100vh;
         z-index: 52;
         overflow-y: auto;
         overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
     `;
     
-    // Inner content to make it scrollable
+    // Inner content to make it scrollable (much taller than viewport)
     const scrollContent = document.createElement('div');
     scrollContent.style.cssText = `
-        height: 300vh;
+        height: 250vh;
         width: 100%;
+        pointer-events: none;
     `;
     scrollDriver.appendChild(scrollContent);
     
