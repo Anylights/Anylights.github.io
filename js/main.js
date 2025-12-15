@@ -1303,7 +1303,6 @@ const ui = {
         about: document.getElementById('nav-about'),
         field: document.getElementById('nav-field'),
         gallery: document.getElementById('nav-gallery'),
-        search: document.getElementById('nav-search'),
         menu: document.getElementById('nav-menu')
     },
     views: {
@@ -1313,7 +1312,6 @@ const ui = {
         projectDetail: document.getElementById('project-detail-view')
     },
     overlays: {
-        search: document.getElementById('search-overlay'),
         menu: document.getElementById('side-menu'),
         contact: document.getElementById('contact-overlay')
     },
@@ -1326,17 +1324,13 @@ const ui = {
         close: document.getElementById('menu-close')
     },
     inputs: {
-        search: document.getElementById('search-input'),
-        searchClose: document.getElementById('search-close'),
         contactClose: document.getElementById('contact-close'),
         projectDetailBack: document.getElementById('project-detail-back')
     },
     containers: {
         canvas: document.getElementById('canvas-container'),
         uiLayer: document.getElementById('ui-layer'),
-        collectedBar: document.getElementById('collected-keywords-bar'),
-        collectedGrid: document.getElementById('collected-grid'),
-        collectedSection: document.getElementById('collected-section')
+        collectedBar: document.getElementById('collected-keywords-bar')
     }
 };
 
@@ -1481,30 +1475,6 @@ ui.nav.field.addEventListener('click', (e) => {
 ui.nav.gallery.addEventListener('click', (e) => {
     e.preventDefault();
     switchView('gallery');
-});
-
-// Search Listener
-ui.nav.search.addEventListener('click', (e) => {
-    e.preventDefault();
-    ui.overlays.search.classList.remove('hidden');
-    ui.containers.canvas.style.filter = 'blur(10px)'; // Blur the background
-    ui.containers.uiLayer.style.filter = 'blur(10px)'; // Blur the UI
-    ui.inputs.search.focus();
-});
-
-ui.inputs.searchClose.addEventListener('click', () => {
-    ui.overlays.search.classList.add('hidden');
-    ui.containers.canvas.style.filter = 'none'; // Remove blur
-    ui.containers.uiLayer.style.filter = 'none';
-});
-
-// Close search on Escape key
-window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !ui.overlays.search.classList.contains('hidden')) {
-        ui.overlays.search.classList.add('hidden');
-        ui.containers.canvas.style.filter = 'none';
-        ui.containers.uiLayer.style.filter = 'none';
-    }
 });
 
 // Menu Listener
