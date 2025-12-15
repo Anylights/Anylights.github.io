@@ -15,13 +15,13 @@ const MATCH_THRESHOLD = 3; // Number of keywords needed to unlock a project
 // Each project has: name, fullSentence (the complete creative intent), keywords (5-8 associated words), description, image
 const PROJECTS_DATA = [
     {
-        id: 'echo-chamber',
-        name: 'ECHO CHAMBER',
-        fullSentence: 'In the resonance of digital space, we find echoes of our own identity reflected through the network of human connection.',
-        keywords: ['RESONANCE', 'ECHO', 'IDENTITY', 'NETWORK', 'CONNECTION', 'DIGITAL', 'SPACE'],
+        id: 'avatar-zero',
+        name: 'Avatar ZERO',
+        fullSentence: 'A game about choices, and a game about only choices.',
+        keywords: ['CHOICE', 'GAME', 'EXISTENCE', 'DESTINY', 'WILL'],
         description: 'An interactive installation exploring how digital environments shape and reflect our sense of self. Through real-time audio visualization, participants witness their voices transformed into visual echoes that persist and interact with others in the space.',
-        image: 'assets/projects/echo-chamber.jpg',
-        year: '2024'
+        image: 'assets/projects/avatar-zero/cover.jpg',
+        year: '2025'
     },
     {
         id: 'flux-state',
@@ -63,23 +63,24 @@ const PROJECTS_DATA = [
 
 // Build keyword list from projects + filler words
 const PROJECT_KEYWORDS = [...new Set(PROJECTS_DATA.flatMap(p => p.keywords))];
-const FILLER_KEYWORDS = [
-    "WEBGL", "THREE.JS", "CREATIVE", "CODING", "FUTURE",
-    "ORDER", "ART", "ALGORITHM", "GENERATIVE",
-    "VIRTUAL", "REALITY", "SHADOW", "FUNCTION", "PROCESS",
-    "ENTROPY", "SYNTHESIS", "KINETIC", "CYBERNETIC",
-    "GRAVITY", "HORIZON", "PERSPECTIVE", "DIMENSION", "SCALE",
-    "VECTOR", "TENSOR", "MATRIX", "NODE", "EDGE", "GRAPH", "TOPOLOGY", "MANIFOLD",
-    "PROTOTYPE", "FEEDBACK", "LOOP", "CYCLE", "ITERATION",
-    "CONCEPT", "THEORY", "PRACTICE", "METHOD", "APPROACH",
-    "SURFACE", "DEPTH", "LAYER", "CORE", "SHELL",
-    "EXPAND", "CONTRACT", "ROTATE", "TRANSLATE", "TRANSFORM",
-    "PIXEL", "VOXEL", "MESH", "VERTEX", "POLYGON",
-    "RENDER", "COMPUTE", "STREAM", "BUFFER",
-    "INPUT", "OUTPUT", "STATE", "EVENT", "TRIGGER",
-    "FEEL", "TOUCH", "SIGHT", "SOUND",
-    "IMMERSIVE", "NARRATIVE", "STRUCTURE", "MOTION"
-];
+// const FILLER_KEYWORDS = [
+//     "WEBGL", "THREE.JS", "CREATIVE", "CODING", "FUTURE",
+//     "ORDER", "ART", "ALGORITHM", "GENERATIVE",
+//     "VIRTUAL", "REALITY", "SHADOW", "FUNCTION", "PROCESS",
+//     "ENTROPY", "SYNTHESIS", "KINETIC", "CYBERNETIC",
+//     "GRAVITY", "HORIZON", "PERSPECTIVE", "DIMENSION", "SCALE",
+//     "VECTOR", "TENSOR", "MATRIX", "NODE", "EDGE", "GRAPH", "TOPOLOGY", "MANIFOLD",
+//     "PROTOTYPE", "FEEDBACK", "LOOP", "CYCLE", "ITERATION",
+//     "CONCEPT", "THEORY", "PRACTICE", "METHOD", "APPROACH",
+//     "SURFACE", "DEPTH", "LAYER", "CORE", "SHELL",
+//     "EXPAND", "CONTRACT", "ROTATE", "TRANSLATE", "TRANSFORM",
+//     "PIXEL", "VOXEL", "MESH", "VERTEX", "POLYGON",
+//     "RENDER", "COMPUTE", "STREAM", "BUFFER",
+//     "INPUT", "OUTPUT", "STATE", "EVENT", "TRIGGER",
+//     "FEEL", "TOUCH", "SIGHT", "SOUND",
+//     "IMMERSIVE", "NARRATIVE", "STRUCTURE", "MOTION"
+// ];
+const FILLER_KEYWORDS = [];
 const KEYWORDS = [...PROJECT_KEYWORDS, ...FILLER_KEYWORDS.filter(k => !PROJECT_KEYWORDS.includes(k))];
 
 // --- State ---
@@ -1190,10 +1191,20 @@ function showProjectDetail(project) {
     const yearEl = detailView.querySelector('.project-detail-year');
     const descEl = detailView.querySelector('.project-detail-description');
     const keywordsEl = detailView.querySelector('.project-detail-keywords');
+    const coverImageEl = detailView.querySelector('.project-cover-image');
     
     titleEl.textContent = project.name;
     yearEl.textContent = project.year || '';
     descEl.textContent = project.description;
+    
+    // Show cover image
+    if (project.image) {
+        coverImageEl.src = project.image;
+        coverImageEl.style.display = 'block';
+    } else {
+        coverImageEl.src = '';
+        coverImageEl.style.display = 'none';
+    }
     
     // Show keywords used to unlock
     const usedKeywords = state.collectedProjects[project.id]?.usedKeywords || state.collectedWords;
@@ -1428,9 +1439,11 @@ function switchView(viewName) {
             
             // Move camera to gallery center
             gsap.to(camera.position, {
-                x: 0, y: 0, z: 0,
+                x: 0, y: 0, z: 12,
                 duration: 0.8,
-                ease: "power2.inOut"
+                ease: "power2.inOut",
+                onUpdate: () => camera.lookAt(0, 0, 0),
+                onComplete: () => camera.lookAt(0, 0, 0)
             });
             gsap.to(camera.rotation, {
                 x: 0, y: 0, z: 0,
@@ -1569,28 +1582,56 @@ let galleryRotation = { current: 0, velocity: 0 };
 let galleryAutoRotate = true;
 
 // Gallery layout - more organic with varied positions
-const GALLERY_BASE_RADIUS = 8;
+const GALLERY_BASE_RADIUS = 11;
 
 function createGalleryCard(project, angle, radius, yOffset) {
     const group = new THREE.Group();
+    
+    // Add halo for collected projects (radial sprite behind card)
+    let glowSprite = null;
+    if (state.collectedProjects[project.id]) {
+        const glowCanvas = document.createElement('canvas');
+        glowCanvas.width = 256;
+        glowCanvas.height = 256;
+        const glowCtx = glowCanvas.getContext('2d');
+        const gradient = glowCtx.createRadialGradient(128, 128, 0, 128, 128, 128);
+        gradient.addColorStop(0, 'rgba(0,255,204,0.5)');
+        gradient.addColorStop(0.35, 'rgba(0,255,204,0.25)');
+        gradient.addColorStop(0.7, 'rgba(0,255,204,0.08)');
+        gradient.addColorStop(1, 'rgba(0,255,204,0)');
+        glowCtx.fillStyle = gradient;
+        glowCtx.fillRect(0, 0, 256, 256);
+        const glowTexture = new THREE.CanvasTexture(glowCanvas);
+        const glowMaterial = new THREE.SpriteMaterial({
+            map: glowTexture,
+            transparent: true,
+            opacity: 0.6,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        glowSprite = new THREE.Sprite(glowMaterial);
+        glowSprite.scale.set(3.4, 2.4, 1);
+        glowSprite.position.z = -0.06;
+        group.add(glowSprite);
+    }
     
     // Card background
     const cardGeometry = new THREE.PlaneGeometry(2.8, 1.8);
     const cardMaterial = new THREE.MeshBasicMaterial({
         color: 0x0a1a1e,
         transparent: true,
-        opacity: 0.9,
+        opacity: 0.95,
         side: THREE.DoubleSide
     });
     const card = new THREE.Mesh(cardGeometry, cardMaterial);
     group.add(card);
     
-    // Card border glow
+    // Card border
     const borderGeometry = new THREE.EdgesGeometry(cardGeometry);
     const borderMaterial = new THREE.LineBasicMaterial({ 
-        color: 0x408F98, 
+        color: state.collectedProjects[project.id] ? 0x00FFCC : 0x408F98, 
         transparent: true, 
-        opacity: 0.7
+        opacity: state.collectedProjects[project.id] ? 1 : 0.7
     });
     const border = new THREE.LineSegments(borderGeometry, borderMaterial);
     group.add(border);
@@ -1601,26 +1642,22 @@ function createGalleryCard(project, angle, radius, yOffset) {
     canvas.width = 512;
     canvas.height = 256;
     
-    // Clear background
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Draw project name
     ctx.font = '600 32px "Azeret Mono", monospace';
     ctx.fillStyle = '#e3e4ff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     
-    // Handle long names
     const name = project.name;
     if (name.length > 15) {
         ctx.font = '600 24px "Azeret Mono", monospace';
     }
-    ctx.fillText(name, canvas.width / 2, canvas.height / 2 - 15);
+    ctx.fillText(name, canvas.width / 2, canvas.height / 2);
     
-    // Draw year
     ctx.font = '200 16px "Azeret Mono", monospace';
     ctx.fillStyle = '#408F98';
-    ctx.fillText(project.year || '', canvas.width / 2, canvas.height / 2 + 25);
+    ctx.fillText(project.year || '', canvas.width / 2, canvas.height / 2 + 40);
     
     const textTexture = new THREE.CanvasTexture(canvas);
     textTexture.needsUpdate = true;
@@ -1628,23 +1665,54 @@ function createGalleryCard(project, angle, radius, yOffset) {
     const textMaterial = new THREE.MeshBasicMaterial({
         map: textTexture,
         transparent: true,
-        depthTest: false
+        side: THREE.DoubleSide
     });
     const textPlane = new THREE.Mesh(
         new THREE.PlaneGeometry(2.6, 1.3),
         textMaterial
     );
-    textPlane.position.z = 0.02;
+    textPlane.position.z = 0.01;
     group.add(textPlane);
+    group.userData.textPlane = textPlane;
+    
+    // Load cover image
+    if (project.image) {
+        const textureLoader = new THREE.TextureLoader();
+        textureLoader.load(
+            project.image,
+            (texture) => {
+                const imageMaterial = new THREE.MeshBasicMaterial({
+                    map: texture,
+                    transparent: true,
+                    opacity: 1,
+                    side: THREE.DoubleSide
+                });
+                const imagePlane = new THREE.Mesh(
+                    new THREE.PlaneGeometry(2.6, 1.46),
+                    imageMaterial
+                );
+                imagePlane.position.z = 0.02;
+                group.add(imagePlane);
+                group.userData.coverImage = imagePlane;
+                
+                if (group.userData.textPlane) {
+                    group.userData.textPlane.visible = false;
+                }
+            },
+            undefined,
+            (error) => {
+                console.warn('Failed to load cover image:', project.image);
+            }
+        );
+    }
     
     // Position on ring
     group.position.x = Math.sin(angle) * radius;
     group.position.z = Math.cos(angle) * radius;
     group.position.y = yOffset;
     
-    // Face outward (toward viewer in center)
-    group.lookAt(0, yOffset, 0);
-    group.rotateY(Math.PI);
+    // Face camera to minimize perspective skew
+    group.lookAt(camera.position.x, yOffset, camera.position.z);
     
     group.userData = {
         project: project,
@@ -1653,6 +1721,7 @@ function createGalleryCard(project, angle, radius, yOffset) {
         yOffset: yOffset,
         card: card,
         border: border,
+        glowSprite: glowSprite,
         hovered: false
     };
     
@@ -1676,10 +1745,9 @@ function create3DGallery() {
     projects.forEach((project, i) => {
         const baseAngle = (i / totalProjects) * Math.PI * 2;
         
-        // Add variation to create organic feel
-        // Alternate between near and far, high and low
-        const radiusVariation = (i % 3 === 0) ? -1.5 : (i % 3 === 1) ? 0 : 2;
-        const radius = GALLERY_BASE_RADIUS + radiusVariation;
+    // Add slight variation to keep layout organic but reduce distortion
+    const radiusVariation = (i % 3 === 0) ? -0.8 : (i % 3 === 1) ? 0 : 0.8;
+    const radius = GALLERY_BASE_RADIUS + radiusVariation;
         
         // Stagger heights - create wave-like pattern
         const heightVariation = Math.sin(i * 0.8) * 1.2 + (i % 2 === 0 ? 0.3 : -0.3);
@@ -1726,18 +1794,19 @@ function create3DGallery() {
 
 function update3DGallery(time) {
     if (!galleryGroup || state.view !== 'gallery') return;
+    camera.lookAt(0, 0, 0);
     
-    const rotateSpeed = 0.04;
-    const friction = 0.92;
-    const autoRotateSpeed = 0.002;
+    const rotateSpeed = 0.12; // Very slow rotation
+    const friction = 0.96;
+    const autoRotateSpeed = 0.0008;
     
-    // Keyboard control
+    // Keyboard control - reversed to match Field behavior
     if (state.keys.a || state.keys.arrowleft) {
-        galleryRotation.velocity += rotateSpeed * 0.016;
+        galleryRotation.velocity -= rotateSpeed * 0.016;
         galleryAutoRotate = false;
     }
     if (state.keys.d || state.keys.arrowright) {
-        galleryRotation.velocity -= rotateSpeed * 0.016;
+        galleryRotation.velocity += rotateSpeed * 0.016;
         galleryAutoRotate = false;
     }
     
@@ -1764,6 +1833,14 @@ function update3DGallery(time) {
     if (galleryGroup.userData.particles) {
         galleryGroup.userData.particles.rotation.y = -galleryRotation.current * 0.3 + time * 0.05;
     }
+    
+    // Animate halo for collected projects - soft pulsing
+    galleryItems.forEach(item => {
+        if (item.userData.glowSprite) {
+            const pulse = 0.5 + Math.sin(time * 1.5) * 0.25;
+            item.userData.glowSprite.material.opacity = pulse;
+        }
+    });
     
     // Hover detection with raycaster
     state.raycaster.setFromCamera(state.mouse, camera);
