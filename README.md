@@ -84,52 +84,140 @@ state = {
 
 ## 添加新作品
 
-### 1. 在 `PROJECTS_DATA` 中添加作品数据
+### 快速开始
+
+你只需要修改 **一个文件**：`js/main.js` 的 `PROJECTS_DATA` 数组。
+
+### 步骤 1：准备作品资源
+
+创建作品文件夹并放入图片：
+
+```
+assets/
+└── projects/
+    └── my-project/          # 与作品 id 同名
+        ├── cover.jpg        # 封面图 (必须，推荐 1920×1080 或 16:9)
+        ├── 01.jpg           # 详情图片 (可选)
+        ├── 02.jpg
+        └── ...
+```
+
+### 步骤 2：添加作品数据
+
+打开 `js/main.js`，找到 `PROJECTS_DATA` 数组（约第 10-100 行），添加你的作品：
 
 ```javascript
 const PROJECTS_DATA = [
+    // ========== 你的作品 ==========
     {
-        id: 'my-project',                    // 唯一ID（用于URL和存储）
-        name: 'MY PROJECT NAME',             // 作品名称（全大写）
-        fullSentence: 'A sentence describing the core concept of your work.',
-        keywords: ['KEYWORD1', 'KEYWORD2', 'KEYWORD3', 'KEYWORD4', 'KEYWORD5'],
-        description: 'Detailed description of the project...',
+        // === 必填字段 ===
+        id: 'my-project',                    // 唯一标识符（URL安全，小写+连字符）
+        name: 'MY PROJECT NAME',             // 作品名称（推荐全大写）
+        fullSentence: 'WHERE LIGHT MEETS SHADOW, WE FIND OURSELVES.',
+        keywords: ['LIGHT', 'SHADOW', 'IDENTITY', 'SPACE', 'EMOTION'],
+        description: '这是一个关于光影与自我认知的交互装置作品...',
         year: '2024',
         
-        // 可选字段
+        // === 可选字段 ===
         coverImage: 'assets/projects/my-project/cover.jpg',
         images: [
             'assets/projects/my-project/01.jpg',
             'assets/projects/my-project/02.jpg',
+            'assets/projects/my-project/03.jpg',
         ],
-        video: 'https://vimeo.com/xxxxxx',
-        videoEmbed: '<iframe src="..."></iframe>',
+        video: 'https://vimeo.com/123456789',              // 视频链接
+        videoEmbed: '<iframe src="..." ...></iframe>',     // 或嵌入代码
         links: {
-            live: 'https://my-project.com',
-            github: 'https://github.com/...',
+            live: 'https://my-project.com',                // 在线演示
+            github: 'https://github.com/user/my-project',  // 源码
+            behance: 'https://behance.net/...',            // 其他链接
         },
-        tags: ['WebGL', 'Interactive', 'Installation'],
+        tags: ['WebGL', 'Interactive', 'Installation'],    // 标签
     },
-    // 更多作品...
+    
+    // ========== 更多作品... ==========
 ];
 ```
 
-### 2. 确保关键词规范
+### 步骤 3：检查关键词
 
-- 关键词必须**全大写**
-- 每个作品建议 5-7 个关键词
-- 关键词会自动添加到 Field 的关键词池中
-- 填充词在 `FILLER_KEYWORDS` 数组中
+**关键词规范：**
+- ✅ 必须**全部大写**：`'LIGHT'` 不是 `'light'`
+- ✅ 每个作品 **5-7 个**关键词最佳
+- ✅ 关键词自动添加到 Field 关键词池
+- ⚠️ 不同作品可以**共享关键词**（增加探索趣味）
 
-### 3. 添加作品资源
+**填充关键词：**
 
+如果你希望 Field 里有更多"干扰词"（不属于任何作品的关键词），编辑 `FILLER_KEYWORDS` 数组：
+
+```javascript
+const FILLER_KEYWORDS = [
+    'CHAOS', 'VOID', 'ECHO', 'DRIFT', 'NOISE',
+    // 添加更多...
+];
 ```
-assets/projects/my-project/
-├── cover.jpg      # 封面图 (推荐 16:9 比例)
-├── 01.jpg         # 详情图片
+
+### 完整示例
+
+假设你有一个名为 "Liquid Dreams" 的作品：
+
+**1. 创建文件夹：**
+```
+assets/projects/liquid-dreams/
+├── cover.jpg
+├── 01.jpg
 ├── 02.jpg
-└── video.mp4      # 可选：本地视频
+└── 03.jpg
 ```
+
+**2. 在 `PROJECTS_DATA` 添加：**
+```javascript
+{
+    id: 'liquid-dreams',
+    name: 'LIQUID DREAMS',
+    fullSentence: 'IN THE SPACE BETWEEN SLEEP AND WAKE, MEMORIES FLOW LIKE WATER.',
+    keywords: ['DREAM', 'WATER', 'MEMORY', 'FLOW', 'SUBCONSCIOUS'],
+    description: 'An immersive audiovisual experience exploring the fluid nature of dreams and memories. Using generative algorithms and real-time audio analysis, the installation creates ever-changing landscapes that respond to the viewer\'s presence.',
+    year: '2024',
+    coverImage: 'assets/projects/liquid-dreams/cover.jpg',
+    images: [
+        'assets/projects/liquid-dreams/01.jpg',
+        'assets/projects/liquid-dreams/02.jpg',
+        'assets/projects/liquid-dreams/03.jpg',
+    ],
+    video: 'https://vimeo.com/999888777',
+    links: {
+        live: 'https://liquid-dreams.art',
+    },
+    tags: ['Generative', 'AudioVisual', 'Installation'],
+},
+```
+
+**3. 完成！** 刷新页面即可看到新作品
+
+### 作品如何展示
+
+| 位置 | 使用的字段 |
+|------|-----------|
+| **Field 关键词** | `keywords` |
+| **Gallery 卡片** | `name`, `coverImage` |
+| **作品详情标题** | `name` (大字) → `fullSentence` (小字) |
+| **作品详情内容** | `description`, `images`, `video`, `links`, `tags` |
+
+### 常见问题
+
+**Q: 作品在 Gallery 里不显示？**
+- 检查 `PROJECTS_DATA` 语法是否正确（注意逗号）
+- 打开浏览器 Console 查看错误信息
+
+**Q: 封面图不显示？**
+- 确认 `coverImage` 路径正确
+- 确认图片文件存在于 `assets/projects/[id]/` 文件夹
+
+**Q: 关键词无法解锁作品？**
+- 检查关键词是否全部大写
+- 确认匹配阈值：需要选中 **同一作品的 3 个关键词** 才能解锁
 
 ## 自定义
 

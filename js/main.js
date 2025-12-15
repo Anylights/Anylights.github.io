@@ -1567,14 +1567,11 @@ let galleryGroup = null;
 let galleryItems = [];
 let galleryRotation = { current: 0, velocity: 0 };
 let galleryAutoRotate = true;
-const GALLERY_RADIUS_INNER = 6;
-const GALLERY_RADIUS_OUTER = 10;
-const GALLERY_Y_INNER = 0.5;
-const GALLERY_Y_OUTER = -1.2;
 
-function createGalleryCard(project, index, total, radius, yOffset) {
-    const angle = (index / total) * Math.PI * 2;
-    
+// Gallery layout - more organic with varied positions
+const GALLERY_BASE_RADIUS = 8;
+
+function createGalleryCard(project, angle, radius, yOffset) {
     const group = new THREE.Group();
     
     // Card background
@@ -1582,7 +1579,7 @@ function createGalleryCard(project, index, total, radius, yOffset) {
     const cardMaterial = new THREE.MeshBasicMaterial({
         color: 0x0a1a1e,
         transparent: true,
-        opacity: 0.85,
+        opacity: 0.9,
         side: THREE.DoubleSide
     });
     const card = new THREE.Mesh(cardGeometry, cardMaterial);
@@ -1593,7 +1590,7 @@ function createGalleryCard(project, index, total, radius, yOffset) {
     const borderMaterial = new THREE.LineBasicMaterial({ 
         color: 0x408F98, 
         transparent: true, 
-        opacity: 0.6 
+        opacity: 0.7
     });
     const border = new THREE.LineSegments(borderGeometry, borderMaterial);
     group.add(border);
@@ -1672,35 +1669,41 @@ function create3DGallery() {
     galleryItems = [];
     
     const projects = PROJECTS_DATA;
-    const innerCount = Math.ceil(projects.length / 2);
-    const outerCount = projects.length - innerCount;
+    const totalProjects = projects.length;
     
-    // Inner ring (top)
-    for (let i = 0; i < innerCount; i++) {
-        const project = projects[i];
-        const item = createGalleryCard(project, i, innerCount, GALLERY_RADIUS_INNER, GALLERY_Y_INNER);
+    // Create organic, staggered layout
+    // Each card gets a unique position with varied radius and height
+    projects.forEach((project, i) => {
+        const baseAngle = (i / totalProjects) * Math.PI * 2;
+        
+        // Add variation to create organic feel
+        // Alternate between near and far, high and low
+        const radiusVariation = (i % 3 === 0) ? -1.5 : (i % 3 === 1) ? 0 : 2;
+        const radius = GALLERY_BASE_RADIUS + radiusVariation;
+        
+        // Stagger heights - create wave-like pattern
+        const heightVariation = Math.sin(i * 0.8) * 1.2 + (i % 2 === 0 ? 0.3 : -0.3);
+        const yOffset = heightVariation;
+        
+        // Slight angle offset for more organic feel
+        const angleOffset = (i % 2 === 0 ? 0.05 : -0.03);
+        const angle = baseAngle + angleOffset;
+        
+        const item = createGalleryCard(project, angle, radius, yOffset);
         galleryGroup.add(item);
         galleryItems.push(item);
-    }
-    
-    // Outer ring (bottom) - offset by half step for visual interest
-    for (let i = 0; i < outerCount; i++) {
-        const project = projects[innerCount + i];
-        const item = createGalleryCard(project, i + 0.5, outerCount, GALLERY_RADIUS_OUTER, GALLERY_Y_OUTER);
-        galleryGroup.add(item);
-        galleryItems.push(item);
-    }
+    });
     
     // Decorative floating particles
-    const particleCount = 150;
+    const particleCount = 120;
     const particleGeometry = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
     
     for (let i = 0; i < particleCount; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const radius = GALLERY_RADIUS_INNER - 2 + Math.random() * (GALLERY_RADIUS_OUTER - GALLERY_RADIUS_INNER + 6);
+        const radius = 4 + Math.random() * 10;
         positions[i * 3] = Math.sin(angle) * radius;
-        positions[i * 3 + 1] = (Math.random() - 0.5) * 5;
+        positions[i * 3 + 1] = (Math.random() - 0.5) * 4;
         positions[i * 3 + 2] = Math.cos(angle) * radius;
     }
     
@@ -1709,7 +1712,7 @@ function create3DGallery() {
         color: 0x408F98,
         size: 0.04,
         transparent: true,
-        opacity: 0.35
+        opacity: 0.3
     });
     const particles = new THREE.Points(particleGeometry, particleMaterial);
     galleryGroup.add(particles);
