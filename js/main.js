@@ -127,18 +127,18 @@ function resetCollectedProjects() {
     state.collectedProjects = {};
     state.collectedKeywords = [];
     state.collectedWords = [];
-    
+
     // Clear localStorage
     try {
         localStorage.removeItem('collectedProjects');
     } catch (e) {
         console.warn('Failed to clear localStorage');
     }
-    
+
     // Reset UI
     updateBottomBar();
     renderGallery();
-    
+
     // Reset keywords in scene
     keywordGroup.children.forEach(mesh => {
         mesh.userData.selected = false;
@@ -147,10 +147,10 @@ function resetCollectedProjects() {
         mesh.material.color.setHex(0xffffff);
         mesh.position.copy(mesh.userData.originalPos);
     });
-    
+
     // Reset lines
     state.lines.forEach(line => line.visible = false);
-    
+
     // Return to landing
     state.fieldPhase = 'landing';
     updateVisibility();
@@ -227,25 +227,25 @@ function createTextSprite(text) {
     const ctx = canvas.getContext('2d');
     const fontSize = 64;
     ctx.font = `200 ${fontSize}px ${FONT_FAMILY}`;
-    
+
     // Measure text
     const metrics = ctx.measureText(text);
     const textWidth = metrics.width;
-    
+
     // Resize canvas with EXTRA PADDING for easier hover
-    const padding = 40; 
+    const padding = 40;
     canvas.width = textWidth + padding * 2;
     canvas.height = fontSize + padding * 2;
-    
+
     // Draw text
     ctx.font = `200 ${fontSize}px ${FONT_FAMILY}`;
     ctx.fillStyle = 'white';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, canvas.width / 2, canvas.height / 2);
-    
+
     const texture = new THREE.CanvasTexture(canvas);
-    
+
     // Use Mesh instead of Sprite for better raycasting (rectangular hit area)
     const material = new THREE.MeshBasicMaterial({
         map: texture,
@@ -254,33 +254,33 @@ function createTextSprite(text) {
         color: 0xffffff,
         depthTest: false,
         side: THREE.DoubleSide // Visible from both sides
-    });    const scaleFactor = 0.005;
+    }); const scaleFactor = 0.005;
     const geometry = new THREE.PlaneGeometry(canvas.width * scaleFactor, canvas.height * scaleFactor);
     const mesh = new THREE.Mesh(geometry, material);
-    
+
     return mesh;
 }
 
 function createKeywords() {
     KEYWORDS.forEach((word, i) => {
         const mesh = createTextSprite(word);
-        
+
         // Random position - fill the entire world space
         // Use WORLD_SIZE to ensure keywords are distributed across the whole looping area
         mesh.position.x = (Math.random() - 0.5) * WORLD_SIZE * 1.8;
         mesh.position.y = (Math.random() - 0.5) * WORLD_SIZE * 1.2; // Less vertical spread
         mesh.position.z = (Math.random() - 0.5) * WORLD_SIZE * 1.8;
-        
-        mesh.userData = { 
+
+        mesh.userData = {
             originalPos: mesh.position.clone(),
             word: word,
-            velocity: new THREE.Vector3((Math.random()-0.5)*0.01, (Math.random()-0.5)*0.01, (Math.random()-0.5)*0.01),
+            velocity: new THREE.Vector3((Math.random() - 0.5) * 0.01, (Math.random() - 0.5) * 0.01, (Math.random() - 0.5) * 0.01),
             hovered: false,
             selected: false,
             baseScaleX: 1,
             baseScaleY: 1
         };
-        
+
         keywordGroup.add(mesh);
     });
 }
@@ -290,19 +290,19 @@ function createExplosion(position) {
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
     const velocities = [];
-    
-    for(let i=0; i<particleCount; i++) {
-        positions[i*3] = position.x + (Math.random() - 0.5) * 0.5;
-        positions[i*3+1] = position.y + (Math.random() - 0.5) * 0.2;
-        positions[i*3+2] = position.z;
-        
+
+    for (let i = 0; i < particleCount; i++) {
+        positions[i * 3] = position.x + (Math.random() - 0.5) * 0.5;
+        positions[i * 3 + 1] = position.y + (Math.random() - 0.5) * 0.2;
+        positions[i * 3 + 2] = position.z;
+
         velocities.push({
             x: (Math.random() - 0.5) * 0.2,
             y: (Math.random() - 0.5) * 0.2,
             z: (Math.random() - 0.5) * 0.2
         });
     }
-    
+
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     const material = new THREE.PointsMaterial({
         color: 0xe3e4ff,
@@ -310,7 +310,7 @@ function createExplosion(position) {
         transparent: true,
         opacity: 1
     });
-    
+
     particles = new THREE.Points(geometry, material);
     particles.userData = { velocities: velocities };
     scene.add(particles);
@@ -322,7 +322,7 @@ function onMouseMove(event) {
     // Normalize mouse for shader
     state.targetMouse.x = event.clientX / window.innerWidth;
     state.targetMouse.y = 1.0 - event.clientY / window.innerHeight;
-    
+
     // Normalize for raycaster
     state.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     state.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -330,28 +330,28 @@ function onMouseMove(event) {
     // Custom Cursor Logic
     const cursor = document.getElementById('cursor');
     const windVane = cursor.querySelector('.wind-vane');
-    
+
     // Move cursor container to exact mouse position
     gsap.to(cursor, {
         x: event.clientX,
         y: event.clientY,
         duration: 0.1
     });
-    
+
     // Rotate based on movement direction
     // Default orientation of our arrow shape is pointing Top-Right (45 deg)
     // We want it to point in the direction of movement
     const dx = event.movementX;
     const dy = event.movementY;
-    
+
     if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
         // Calculate angle of movement
         let angle = Math.atan2(dy, dx) * (180 / Math.PI);
-        
+
         // IMPORTANT: The uploaded cursor image should point to the RIGHT (East).
         // If your image points UP, change this to: angle + 90
         // If your image points Top-Right, change this to: angle - 45
-        
+
         gsap.to(windVane, {
             rotation: angle,
             duration: 0.5
@@ -363,7 +363,7 @@ function onMouseMove(event) {
         // Raycast for keywords
         state.raycaster.setFromCamera(state.mouse, camera);
         const intersects = state.raycaster.intersectObjects(keywordGroup.children);
-        
+
         // Reset hover state for all
         keywordGroup.children.forEach(sprite => {
             if (!sprite.userData.selected) {
@@ -378,7 +378,7 @@ function onMouseMove(event) {
 
         if (intersects.length > 0) {
             const object = intersects[0].object;
-            
+
             // Store base scale if not stored
             if (!object.userData.baseScaleX) {
                 object.userData.baseScaleX = object.scale.x;
@@ -405,7 +405,7 @@ function onClick(event) {
         onGalleryClick();
         return;
     }
-    
+
     // Only allow interactions if we are in the Field View
     if (state.view !== 'field') return;
 
@@ -419,7 +419,7 @@ function onClick(event) {
         createExplosion(new THREE.Vector3(0, 0, 0));
         state.fieldPhase = 'shattering';
         updateVisibility();
-        
+
         // Transition to Field
         setTimeout(() => {
             state.fieldPhase = 'active';
@@ -429,20 +429,20 @@ function onClick(event) {
                 gsap.to(mesh.material, { opacity: 0.6, duration: 2 });
             });
         }, 1000);
-        
+
     } else if (state.fieldPhase === 'active') {
         // Raycast for keywords
         state.raycaster.setFromCamera(state.mouse, camera);
         const intersects = state.raycaster.intersectObjects(keywordGroup.children);
-        
+
         if (intersects.length > 0) {
             const object = intersects[0].object;
             const word = object.userData.word;
-            
+
             // Select Logic - only if not already selected
             if (!object.userData.selected) {
                 selectKeyword(object);
-                
+
                 // Check for project match
                 const matchedProject = checkProjectMatch();
                 if (matchedProject) {
@@ -460,48 +460,48 @@ let hintLines = [];
 
 function selectKeyword(mesh) {
     const word = mesh.userData.word;
-    
+
     // Add to collected
     state.collectedKeywords.push(mesh);
     state.collectedWords.push(word);
     mesh.userData.selected = true;
-    
+
     // Kill any existing animations on this mesh's material to prevent conflicts
     gsap.killTweensOf(mesh.material);
     gsap.killTweensOf(mesh.material.color);
     gsap.killTweensOf(mesh.scale);
-    
+
     // Visual feedback - bright highlight color for selected keywords
     mesh.material.color.setHex(0x00FFCC); // Bright cyan/mint for better visibility
     mesh.material.opacity = 1;
-    
+
     // Store current scale as base if not already stored
     if (!mesh.userData.baseScaleX) {
         mesh.userData.baseScaleX = mesh.scale.x;
         mesh.userData.baseScaleY = mesh.scale.y;
     }
-    
+
     // Add a subtle glow effect by scaling up slightly from base scale
-    gsap.to(mesh.scale, { 
-        x: mesh.userData.baseScaleX * 1.15, 
-        y: mesh.userData.baseScaleY * 1.15, 
-        z: 1.15, 
-        duration: 0.3, 
-        ease: "back.out" 
+    gsap.to(mesh.scale, {
+        x: mesh.userData.baseScaleX * 1.15,
+        y: mesh.userData.baseScaleY * 1.15,
+        z: 1.15,
+        duration: 0.3,
+        ease: "back.out"
     });
-    
+
     // Bloom burst
     const light = new THREE.PointLight(0x00FFCC, 8, 15);
     light.position.copy(mesh.position);
     scene.add(light);
     gsap.to(light, { intensity: 0, duration: 1.5, onComplete: () => scene.remove(light) });
-    
+
     // Redistribute other keywords - gentle movement to new positions
     redistributeKeywords(mesh);
-    
+
     // Update bottom bar UI
     updateBottomBar();
-    
+
     // Create hint lines to related keywords in 3D space
     createHintLines(word);
 }
@@ -509,31 +509,31 @@ function selectKeyword(mesh) {
 // Redistribute keywords after selection - "World Flow" vortex/orbit effect
 function redistributeKeywords(selectedMesh) {
     const center = selectedMesh.position.clone();
-    
+
     keywordGroup.children.forEach((mesh, index) => {
         // Skip selected keywords
         if (mesh.userData.selected) return;
-        
+
         // Calculate current direction relative to the selected object
         let direction = new THREE.Vector3().subVectors(mesh.position, center).normalize();
         if (direction.lengthSq() === 0) direction.set(1, 0, 0); // Safety
-        
+
         // Define a target orbit radius - distribute them in layers
         const layer = (index % 3) + 1;
         const targetRadius = 8 + layer * 4; // 12, 16, 20...
-        
+
         // Calculate a target position on a sphere/ring around the selected object
         // We want them to swirl, so we add a rotation to their current angle
         const axis = new THREE.Vector3(0, 1, 0);
         const angle = Math.PI / 2 + (Math.random() * 0.5); // Rotate ~90 degrees around center
-        
+
         direction.applyAxisAngle(axis, angle);
-        
+
         const targetPos = center.clone().add(direction.multiplyScalar(targetRadius));
-        
+
         // Add some vertical variation
         targetPos.y += (Math.random() - 0.5) * 6;
-        
+
         // Animate with a "slingshot" ease
         gsap.to(mesh.position, {
             x: targetPos.x,
@@ -554,33 +554,33 @@ function findProjectsWithKeyword(word) {
 function createHintLines(selectedWord) {
     // Clear existing hint lines
     clearHintLines();
-    
+
     // Find all projects that the selected word belongs to
     const relatedProjects = findProjectsWithKeyword(selectedWord);
-    
+
     // Find the mesh for the selected word
     const selectedMesh = keywordGroup.children.find(m => m.userData.word === selectedWord);
     if (!selectedMesh) return;
-    
+
     // For each related project, draw lines to other keywords of that project
     relatedProjects.forEach(project => {
         // Skip already collected projects
         if (state.collectedProjects[project.id]) return;
-        
+
         project.keywords.forEach(keyword => {
             // Skip the selected word itself and already selected words
             if (keyword === selectedWord || state.collectedWords.includes(keyword)) return;
-            
+
             // Find the mesh for this keyword
             const targetMesh = keywordGroup.children.find(m => m.userData.word === keyword);
             if (!targetMesh) return;
-            
+
             // Create a hint line - always visible regardless of distance
             const points = [selectedMesh.position.clone(), targetMesh.position.clone()];
             const geometry = new THREE.BufferGeometry().setFromPoints(points);
-            const material = new THREE.LineBasicMaterial({ 
+            const material = new THREE.LineBasicMaterial({
                 color: 0x5BC0BE, // Brighter cyan
-                transparent: true, 
+                transparent: true,
                 opacity: 0, // Start invisible
                 depthTest: false, // Always render on top, visible at any distance
                 depthWrite: false
@@ -593,10 +593,10 @@ function createHintLines(selectedWord) {
             };
             scene.add(line);
             hintLines.push(line);
-            
+
             // Fade in the line - higher opacity for visibility
             gsap.to(material, { opacity: 0.4, duration: 1 });
-            
+
             // Highlight the target keyword more strongly
             if (!targetMesh.userData.selected && !targetMesh.userData.hinted) {
                 targetMesh.userData.hinted = true;
@@ -610,14 +610,14 @@ function createHintLines(selectedWord) {
 
 function clearHintLines() {
     hintLines.forEach(line => {
-        gsap.to(line.material, { 
-            opacity: 0, 
-            duration: 0.3, 
-            onComplete: () => scene.remove(line) 
+        gsap.to(line.material, {
+            opacity: 0,
+            duration: 0.3,
+            onComplete: () => scene.remove(line)
         });
     });
     hintLines = [];
-    
+
     // Reset hinted state on keywords
     keywordGroup.children.forEach(mesh => {
         if (mesh.userData.hinted && !mesh.userData.selected) {
@@ -630,19 +630,19 @@ function updateBottomBar() {
     // Update HTML bottom bar with collected words
     const bottomBar = document.getElementById('collected-keywords-bar');
     if (!bottomBar) return;
-    
+
     bottomBar.innerHTML = '';
-    
+
     // Create inner container for scrolling
     const innerContainer = document.createElement('div');
     innerContainer.className = 'collected-words-inner';
-    
+
     state.collectedWords.forEach((word, i) => {
         const span = document.createElement('span');
         span.className = 'collected-word';
         span.textContent = word;
         innerContainer.appendChild(span);
-        
+
         if (i < state.collectedWords.length - 1) {
             const connector = document.createElement('span');
             connector.className = 'word-connector';
@@ -650,15 +650,15 @@ function updateBottomBar() {
             innerContainer.appendChild(connector);
         }
     });
-    
+
     bottomBar.appendChild(innerContainer);
     bottomBar.classList.toggle('visible', state.collectedWords.length > 0);
-    
+
     // Auto-scroll to show the newest word on the right
     requestAnimationFrame(() => {
         const barWidth = bottomBar.clientWidth;
         const contentWidth = innerContainer.scrollWidth;
-        
+
         if (contentWidth > barWidth) {
             // Shift left so the newest word is visible on the right
             const offset = contentWidth - barWidth + 40; // 40px padding
@@ -681,7 +681,7 @@ function checkProjectMatch() {
     for (const project of PROJECTS_DATA) {
         // Skip already collected projects
         if (state.collectedProjects[project.id]) continue;
-        
+
         const matchedWords = state.collectedWords.filter(w => project.keywords.includes(w));
         if (matchedWords.length >= MATCH_THRESHOLD) {
             return { project, matchedWords };
@@ -694,7 +694,7 @@ function unlockProject(match) {
     const { project, matchedWords } = match;
     state.fieldPhase = 'unlocking';
     state.currentUnlockingProject = project;
-    
+
     // Start unlock animation sequence
     startUnlockSequence(project, matchedWords);
 }
@@ -704,31 +704,31 @@ function unlockProject(match) {
 function startUnlockSequence(project, matchedWords) {
     state.fieldPhase = 'unlocking';
     state.currentUnlockingProject = project;
-    
+
     // Create blur overlay that gradually increases
     const blurOverlay = document.createElement('div');
     blurOverlay.id = 'unlock-blur-overlay';
     blurOverlay.className = 'unlock-blur-overlay';
     document.body.appendChild(blurOverlay);
-    
+
     // Animate blur overlay in
-    gsap.fromTo(blurOverlay, 
-        { opacity: 0 }, 
+    gsap.fromTo(blurOverlay,
+        { opacity: 0 },
         { opacity: 1, duration: 0.8, ease: "power2.out" }
     );
-    
+
     // Fade out non-selected keywords smoothly
     keywordGroup.children.forEach(mesh => {
         if (!mesh.userData.selected) {
             gsap.to(mesh.material, { opacity: 0, duration: 0.8 });
         }
     });
-    
+
     // Hide hint lines
     state.lines.forEach(line => {
         gsap.to(line.material, { opacity: 0, duration: 0.5 });
     });
-    
+
     // Get matched meshes and gather them toward camera
     const matchedMeshes = state.collectedKeywords.filter(m => matchedWords.includes(m.userData.word));
     const gatherPoint = new THREE.Vector3(
@@ -736,7 +736,7 @@ function startUnlockSequence(project, matchedWords) {
         camera.position.y,
         camera.position.z - 8
     );
-    
+
     // Phase 1: Gather keywords to center with staggered timing
     matchedMeshes.forEach((mesh, i) => {
         gsap.to(mesh.position, {
@@ -747,7 +747,7 @@ function startUnlockSequence(project, matchedWords) {
             delay: i * 0.1,
             ease: "power3.inOut"
         });
-        
+
         // Pulse the keywords as they move
         gsap.to(mesh.material, {
             opacity: 0.8,
@@ -756,7 +756,7 @@ function startUnlockSequence(project, matchedWords) {
             repeat: 1
         });
     });
-    
+
     // Phase 2: Show sentence after keywords gather
     setTimeout(() => {
         showCompleteSentence(project, matchedMeshes, blurOverlay);
@@ -768,28 +768,28 @@ function showCompleteSentence(project, matchedMeshes, blurOverlay) {
     const sentenceOverlay = document.createElement('div');
     sentenceOverlay.id = 'sentence-overlay';
     sentenceOverlay.className = 'sentence-overlay no-bg'; // No background, uses blur overlay
-    
+
     // Highlight the keywords in the sentence
     let sentenceHTML = project.fullSentence;
     project.keywords.forEach(keyword => {
         const regex = new RegExp(`\\b(${keyword})\\b`, 'gi');
         sentenceHTML = sentenceHTML.replace(regex, '<span class="highlight-word">$1</span>');
     });
-    
+
     sentenceOverlay.innerHTML = `<p class="full-sentence">${sentenceHTML}</p>`;
     document.body.appendChild(sentenceOverlay);
-    
+
     // Fade matched 3D keywords out as sentence appears
     matchedMeshes.forEach(mesh => {
         gsap.to(mesh.material, { opacity: 0, duration: 0.8 });
     });
-    
+
     // Animate sentence in with letter stagger effect
-    gsap.fromTo(sentenceOverlay, 
-        { opacity: 0 }, 
+    gsap.fromTo(sentenceOverlay,
+        { opacity: 0 },
         { opacity: 1, duration: 1.2, ease: "power2.out" }
     );
-    
+
     // Phase 3: Dissolve sentence and reveal project name
     setTimeout(() => {
         dissolveSentenceToName(project, sentenceOverlay, blurOverlay);
@@ -801,11 +801,11 @@ function dissolveSentenceToName(project, sentenceOverlay, blurOverlay) {
     const particleContainer = document.createElement('div');
     particleContainer.className = 'particle-container';
     document.body.appendChild(particleContainer);
-    
+
     // Get sentence position for particles
     const sentenceEl = sentenceOverlay.querySelector('.full-sentence');
     const rect = sentenceEl.getBoundingClientRect();
-    
+
     // Create particles from sentence position
     const particleCount = 60;
     for (let i = 0; i < particleCount; i++) {
@@ -814,7 +814,7 @@ function dissolveSentenceToName(project, sentenceOverlay, blurOverlay) {
         particle.style.left = (rect.left + Math.random() * rect.width) + 'px';
         particle.style.top = (rect.top + Math.random() * rect.height) + 'px';
         particleContainer.appendChild(particle);
-        
+
         // Animate particle to center then scatter
         gsap.to(particle, {
             x: (window.innerWidth / 2 - parseFloat(particle.style.left)) + (Math.random() - 0.5) * 100,
@@ -826,14 +826,14 @@ function dissolveSentenceToName(project, sentenceOverlay, blurOverlay) {
             ease: "power2.out"
         });
     }
-    
+
     // Fade out sentence
-    gsap.to(sentenceOverlay, { 
-        opacity: 0, 
+    gsap.to(sentenceOverlay, {
+        opacity: 0,
         duration: 0.6,
         onComplete: () => sentenceOverlay.remove()
     });
-    
+
     // After particles gather, form the project name
     setTimeout(() => {
         // Scatter particles outward
@@ -848,7 +848,7 @@ function dissolveSentenceToName(project, sentenceOverlay, blurOverlay) {
                 ease: "power2.in"
             });
         });
-        
+
         // Show project name with particles converging effect
         setTimeout(() => {
             particleContainer.remove();
@@ -864,17 +864,17 @@ function showProjectNameWithParticles(project, blurOverlay) {
     nameOverlay.className = 'project-name-reveal';
     nameOverlay.innerHTML = `<h1 class="project-title-reveal">${project.name}</h1>`;
     document.body.appendChild(nameOverlay);
-    
+
     // Create converging particles around the title
     const particleContainer = document.createElement('div');
     particleContainer.className = 'title-particle-container';
     document.body.appendChild(particleContainer);
-    
+
     const particleCount = 40;
     for (let i = 0; i < particleCount; i++) {
         const particle = document.createElement('div');
         particle.className = 'converge-particle';
-        
+
         // Start from random positions around the screen edges
         const angle = (i / particleCount) * Math.PI * 2;
         const radius = Math.max(window.innerWidth, window.innerHeight) * 0.6;
@@ -882,7 +882,7 @@ function showProjectNameWithParticles(project, blurOverlay) {
         particle.style.top = (window.innerHeight / 2 + Math.sin(angle) * radius) + 'px';
         particle.style.opacity = '0';
         particleContainer.appendChild(particle);
-        
+
         // Animate particles converging to center
         gsap.to(particle, {
             left: window.innerWidth / 2 + (Math.random() - 0.5) * 200,
@@ -902,24 +902,24 @@ function showProjectNameWithParticles(project, blurOverlay) {
             }
         });
     }
-    
+
     // Animate title in - scale up with glow
-    gsap.fromTo(nameOverlay, 
-        { opacity: 0, scale: 0.3 }, 
-        { 
-            opacity: 1, 
-            scale: 1, 
-            duration: 1.2, 
+    gsap.fromTo(nameOverlay,
+        { opacity: 0, scale: 0.3 },
+        {
+            opacity: 1,
+            scale: 1,
+            duration: 1.2,
             ease: "back.out(1.4)",
             delay: 0.3
         }
     );
-    
+
     // Clean up particles after animation
     setTimeout(() => {
         particleContainer.remove();
     }, 2000);
-    
+
     // Phase 4: Title stays centered, waits for scroll
     setTimeout(() => {
         setupScrollDrivenTransition(project, nameOverlay, blurOverlay);
@@ -942,7 +942,7 @@ function setupScrollDrivenTransition(project, nameOverlay, blurOverlay) {
         overflow-x: hidden;
         -webkit-overflow-scrolling: touch;
     `;
-    
+
     // Inner content to make it scrollable (much taller than viewport)
     const scrollContent = document.createElement('div');
     scrollContent.style.cssText = `
@@ -951,7 +951,7 @@ function setupScrollDrivenTransition(project, nameOverlay, blurOverlay) {
         pointer-events: none;
     `;
     scrollDriver.appendChild(scrollContent);
-    
+
     // Add scroll hint
     const scrollHint = document.createElement('div');
     scrollHint.className = 'scroll-hint';
@@ -960,101 +960,101 @@ function setupScrollDrivenTransition(project, nameOverlay, blurOverlay) {
         <div class="scroll-hint-arrow">↓</div>
     `;
     document.body.appendChild(scrollHint);
-    
+
     // Animate scroll hint in
-    gsap.fromTo(scrollHint, 
+    gsap.fromTo(scrollHint,
         { opacity: 0, y: 20 },
         { opacity: 1, y: 0, duration: 0.8, delay: 0.5 }
     );
-    
+
     document.body.appendChild(scrollDriver);
-    
+
     // Get title element for font-size animation
     const titleReveal = nameOverlay.querySelector('.project-title-reveal');
-    
+
     // Initial values (center of screen)
     const startTop = window.innerHeight / 2;
     const startLeft = window.innerWidth / 2;
     const startFontSize = window.innerWidth * 0.08; // 8vw
-    
+
     // Target values (top-left corner)
     const targetTop = 140;
     const targetLeft = 60;
     const targetFontSize = 48; // 3rem = 48px
-    
+
     // Scroll threshold (when animation completes)
     const scrollThreshold = window.innerHeight * 0.8;
-    
+
     let animationComplete = false;
     let titleInPosition = false;
-    
+
     // Prepare project detail view content (hidden)
     const detailView = document.getElementById('project-detail-view');
     const titleEl = detailView.querySelector('.project-detail-title');
     const yearEl = detailView.querySelector('.project-detail-year');
     const descEl = detailView.querySelector('.project-detail-description');
     const keywordsEl = detailView.querySelector('.project-detail-keywords');
-    
+
     titleEl.textContent = project.name;
     yearEl.textContent = project.year || '';
     descEl.textContent = project.description;
-    
+
     // Show keywords used to unlock
     const usedKeywords = state.collectedWords;
     keywordsEl.innerHTML = usedKeywords.map(k => `<span class="detail-keyword">${k}</span>`).join('');
-    
+
     // Hide detail title initially
     titleEl.style.opacity = '0';
-    
+
     // Scroll handler
     function onScroll() {
         if (animationComplete) return; // Stop processing once complete
-        
+
         const scrollY = scrollDriver.scrollTop;
         const progress = Math.min(scrollY / scrollThreshold, 1);
-        
+
         // Easing function for smooth animation
         const easedProgress = easeInOutCubic(progress);
-        
+
         // Fade out scroll hint as user scrolls
         if (progress > 0 && progress < 0.3) {
             scrollHint.style.opacity = 1 - (progress / 0.3);
         } else if (progress >= 0.3) {
             scrollHint.style.opacity = 0;
         }
-        
+
         // Interpolate position
         const currentTop = startTop + (targetTop - startTop) * easedProgress;
         const currentLeft = startLeft + (targetLeft - startLeft) * easedProgress;
         const currentFontSize = startFontSize + (targetFontSize - startFontSize) * easedProgress;
-        
+
         // Apply transform
         nameOverlay.style.top = currentTop + 'px';
         nameOverlay.style.left = currentLeft + 'px';
         nameOverlay.style.transform = `translate(${-50 * (1 - easedProgress)}%, ${-50 * (1 - easedProgress)}%)`;
         titleReveal.style.fontSize = currentFontSize + 'px';
-        
+
         // When title reaches position, lock scroll and start content animation
         if (progress >= 0.95 && !titleInPosition) {
             titleInPosition = true;
-            
+
             // Lock title in final position
             nameOverlay.style.top = targetTop + 'px';
             nameOverlay.style.left = targetLeft + 'px';
             nameOverlay.style.transform = 'translate(0, 0)';
             titleReveal.style.fontSize = targetFontSize + 'px';
-            
+
             // Prevent further scrolling during content animation
             scrollDriver.style.overflow = 'hidden';
-            
+
             // Start content slide-in animation
             completeScrollTransition(project, nameOverlay, blurOverlay, scrollDriver, scrollHint, detailView, titleEl);
             animationComplete = true;
         }
     }
-    
+
     scrollDriver.addEventListener('scroll', onScroll);
-    
+
     // Prevent scroll jump on wheel event
     scrollDriver.addEventListener('wheel', (e) => {
         if (animationComplete) {
@@ -1064,8 +1064,8 @@ function setupScrollDrivenTransition(project, nameOverlay, blurOverlay) {
 }
 
 function easeInOutCubic(t) {
-    return t < 0.5 
-        ? 4 * t * t * t 
+    return t < 0.5
+        ? 4 * t * t * t
         : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
@@ -1073,38 +1073,38 @@ function completeScrollTransition(project, nameOverlay, blurOverlay, scrollDrive
     // Remove scroll driver
     scrollDriver.remove();
     scrollHint.remove();
-    
+
     // Keep title visible and in final position
     nameOverlay.style.position = 'fixed';
     nameOverlay.style.top = '140px';
     nameOverlay.style.left = '60px';
     nameOverlay.style.transform = 'translate(0, 0)';
     nameOverlay.style.zIndex = '56'; // Above detail view
-    
+
     // Fade out blur overlay
     gsap.to(blurOverlay, {
         opacity: 0,
         duration: 0.4,
         onComplete: () => blurOverlay.remove()
     });
-    
+
     // Show detail view background first
     detailView.classList.remove('hidden');
     detailView.style.opacity = '0';
     detailView.style.pointerEvents = 'auto'; // IMPORTANT: Enable pointer events
-    
+
     // Prepare content elements for slide-up animation
     const container = detailView.querySelector('.project-detail-container');
     const backButton = container.querySelector('.back-button');
     const header = container.querySelector('.project-detail-header');
     const body = container.querySelector('.project-detail-body');
-    
+
     // Set initial states for slide-up (start below viewport)
-    gsap.set([backButton, header, body], { 
-        opacity: 0, 
+    gsap.set([backButton, header, body], {
+        opacity: 0,
         y: 60
     });
-    
+
     // Fade in view background quickly
     gsap.to(detailView, {
         opacity: 1,
@@ -1117,7 +1117,7 @@ function completeScrollTransition(project, nameOverlay, blurOverlay, scrollDrive
                 duration: 0.8,
                 ease: "power2.out"
             });
-            
+
             gsap.to(header, {
                 opacity: 1,
                 y: 0,
@@ -1125,7 +1125,7 @@ function completeScrollTransition(project, nameOverlay, blurOverlay, scrollDrive
                 delay: 0.05,
                 ease: "power2.out"
             });
-            
+
             gsap.to(body, {
                 opacity: 1,
                 y: 0,
@@ -1136,28 +1136,28 @@ function completeScrollTransition(project, nameOverlay, blurOverlay, scrollDrive
                     // After all content is in place, cross-fade titles
                     titleEl.style.opacity = '1';
                     titleEl.style.transition = 'opacity 0.3s ease';
-                    
+
                     gsap.to(nameOverlay, {
                         opacity: 0,
                         duration: 0.3,
                         onComplete: () => {
                             nameOverlay.remove();
-                            
+
                             // Update state
                             state.view = 'projectDetail';
                             state.currentProjectDetail = project;
                             state.fieldPhase = 'projectReveal';
-                            
+
                             // Save project as collected
                             state.collectedProjects[project.id] = {
                                 project: project,
                                 usedKeywords: [...state.collectedWords]
                             };
                             saveCollectedProjects();
-                            
+
                             // Keep canvas visible
                             document.getElementById('canvas-container').style.opacity = '0.7';
-                            
+
                             updateVisibility();
                         }
                     });
@@ -1180,11 +1180,11 @@ function showProjectDetail(project) {
     if (state.view !== 'projectDetail') {
         state.previousView = state.view;
     }
-    
+
     state.view = 'projectDetail';
     state.currentProjectDetail = project;
     state.fieldPhase = 'projectReveal';
-    
+
     // Update the project detail view HTML
     const detailView = document.getElementById('project-detail-view');
     const titleEl = detailView.querySelector('.project-detail-title');
@@ -1192,11 +1192,11 @@ function showProjectDetail(project) {
     const descEl = detailView.querySelector('.project-detail-description');
     const keywordsEl = detailView.querySelector('.project-detail-keywords');
     const coverImageEl = detailView.querySelector('.project-cover-image');
-    
+
     titleEl.textContent = project.name;
     yearEl.textContent = project.year || '';
     descEl.textContent = project.description;
-    
+
     // Show cover image
     if (project.image) {
         coverImageEl.src = project.image;
@@ -1205,27 +1205,27 @@ function showProjectDetail(project) {
         coverImageEl.src = '';
         coverImageEl.style.display = 'none';
     }
-    
+
     // Show keywords used to unlock
     const usedKeywords = state.collectedProjects[project.id]?.usedKeywords || state.collectedWords;
     keywordsEl.innerHTML = usedKeywords.map(k => `<span class="detail-keyword">${k}</span>`).join('');
-    
+
     // Hide Gallery view so it doesn't show through the blur
     ui.views.gallery.classList.add('hidden');
     // Clear only visibility-related inline styles that might override the class
     ui.views.gallery.style.visibility = '';
     ui.views.gallery.style.opacity = '';
     ui.views.gallery.style.pointerEvents = '';
-    
+
     // Keep canvas at 0.7 so the blur effect looks good
     document.getElementById('canvas-container').style.opacity = '0.7';
     document.getElementById('canvas-container').style.pointerEvents = 'none';
-    
+
     // Show the view - ensure it's scrollable
     detailView.classList.remove('hidden');
     detailView.style.pointerEvents = 'auto';
     detailView.scrollTop = 0; // Reset scroll position
-    
+
     updateVisibility();
 }
 
@@ -1233,23 +1233,32 @@ function hideProjectDetail() {
     const detailView = document.getElementById('project-detail-view');
     detailView.classList.add('hidden');
     detailView.style.pointerEvents = 'none';
-    
+
+    // Clear current project detail state
+    state.currentProjectDetail = null;
+
     // Return to previous view
     if (state.previousView === 'gallery') {
         state.view = 'gallery';
-        
+        state.fieldPhase = 'active';
+
         // Get gallery element directly and show it
         const galleryEl = document.getElementById('gallery-view');
         galleryEl.classList.remove('hidden');
-        
+
         // Update nav active state
         document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
         if (ui.nav.gallery) ui.nav.gallery.classList.add('active');
-        
-        // Keep canvas dimmed
+
+        // Keep canvas visible but slightly dimmed, enable pointer events for 3D gallery
         document.getElementById('canvas-container').style.opacity = '0.7';
-        document.getElementById('canvas-container').style.pointerEvents = 'none';
-        
+        document.getElementById('canvas-container').style.pointerEvents = 'auto';
+
+        // Make sure gallery group is visible
+        if (galleryGroup) {
+            galleryGroup.visible = true;
+        }
+
         renderGallery();
     } else {
         // Restore canvas for Field view
@@ -1265,11 +1274,11 @@ function returnToField({ resetSelection = false } = {}) {
     state.fieldPhase = 'active';
     state.currentProjectDetail = null;
     state.currentUnlockingProject = null;
-    
+
     if (resetSelection) {
         clearCollectedKeywords();
     }
-    
+
     updateVisibility();
 }
 
@@ -1279,26 +1288,26 @@ function clearCollectedKeywords() {
         mesh.userData.selected = false;
         mesh.userData.fixed = false;
         mesh.userData.hinted = false;
-        
+
         // Reset appearance
         mesh.material.color.setHex(0xffffff);
         gsap.to(mesh.material, { opacity: 0.6, duration: 0.5 });
     });
-    
+
     // Clear arrays
     state.collectedKeywords = [];
     state.collectedWords = [];
-    
+
     // Remove old state lines (if any)
     state.lines.forEach(line => scene.remove(line));
     state.lines = [];
-    
+
     // Clear hint lines
     clearHintLines();
-    
+
     // Update bottom bar
     updateBottomBar();
-    
+
     // Reset all keywords appearance
     keywordGroup.children.forEach(mesh => {
         mesh.userData.hinted = false;
@@ -1347,7 +1356,7 @@ const ui = {
 
 function updateVisibility() {
     const landingTitle = document.getElementById('landing-title');
-    
+
     // 1. Handle HTML Title Visibility
     if (state.view === 'field' && state.fieldPhase === 'landing') {
         landingTitle.style.opacity = '1';
@@ -1360,11 +1369,11 @@ function updateVisibility() {
     // 2. Handle 3D Keywords Visibility
     // Keywords should only be visible if we are in Field View AND Field Phase is active (or unlocking)
     const showKeywords = (state.view === 'field' && (state.fieldPhase === 'active' || state.fieldPhase === 'unlocking'));
-    
+
     if (keywordGroup) {
         keywordGroup.visible = showKeywords;
     }
-    
+
     // 3. Handle Particles Visibility
     // Particles are transient, but if we switch away, maybe hide them?
     if (particles) {
@@ -1384,22 +1393,22 @@ function switchView(viewName) {
     ui.views.gallery.style.visibility = '';
     ui.views.gallery.style.opacity = '';
     ui.views.gallery.style.pointerEvents = '';
-    
+
     ui.views.about.classList.add('hidden');
     ui.views.about.style.visibility = '';
     ui.views.about.style.opacity = '';
     ui.views.about.style.pointerEvents = '';
-    
+
     if (ui.views.projectDetail) {
         ui.views.projectDetail.classList.add('hidden');
         ui.views.projectDetail.style.visibility = '';
         ui.views.projectDetail.style.opacity = '';
         ui.views.projectDetail.style.pointerEvents = '';
     }
-    
+
     // Reset Canvas Blur
     ui.containers.canvas.style.filter = 'none';
-    
+
     // Handle collected bar visibility - only show in Field view
     const collectedBar = document.getElementById('collected-keywords-bar');
     if (collectedBar) {
@@ -1409,7 +1418,7 @@ function switchView(viewName) {
             collectedBar.classList.add('hidden-view');
         }
     }
-    
+
     // Handle specific views
     if (viewName === 'field') {
         // Show Canvas
@@ -1429,21 +1438,20 @@ function switchView(viewName) {
         ui.containers.canvas.style.opacity = '0.7';
         ui.containers.canvas.style.pointerEvents = 'auto'; // Allow clicks for 3D gallery
         ui.views.gallery.classList.remove('hidden');
-        
+
         // Show and reset 3D Gallery
         if (galleryGroup) {
             galleryGroup.visible = true;
             galleryRotation.current = 0;
             galleryRotation.velocity = 0;
             galleryAutoRotate = true;
-            
-            // Move camera to gallery center
+
+            // Move camera to CENTER of the ring gallery (0, 0, 0)
+            // Camera looks outward, cards are arranged around it
             gsap.to(camera.position, {
-                x: 0, y: 0, z: 12,
+                x: 0, y: 0, z: 0,
                 duration: 0.8,
-                ease: "power2.inOut",
-                onUpdate: () => camera.lookAt(0, 0, 0),
-                onComplete: () => camera.lookAt(0, 0, 0)
+                ease: "power2.inOut"
             });
             gsap.to(camera.rotation, {
                 x: 0, y: 0, z: 0,
@@ -1460,7 +1468,7 @@ function switchView(viewName) {
             galleryGroup.visible = false;
         }
     }
-    
+
     updateVisibility();
 }
 
@@ -1500,16 +1508,16 @@ ui.nav.menu.addEventListener('click', (e) => {
 ui.menuItems.home.addEventListener('click', (e) => {
     e.preventDefault();
     ui.overlays.menu.classList.remove('open');
-    
+
     // Reset to Field Landing
     switchView('field');
     state.fieldPhase = 'landing';
     state.collectedKeywords = []; // Clear collected
     state.collectedWords = []; // Clear collected words
-    
+
     // Clear hint lines
     clearHintLines();
-    
+
     // Reset Keywords
     keywordGroup.children.forEach(mesh => {
         mesh.userData.selected = false;
@@ -1520,10 +1528,10 @@ ui.menuItems.home.addEventListener('click', (e) => {
         mesh.position.copy(mesh.userData.originalPos);
         mesh.scale.set(1, 1, 1); // Reset scale
     });
-    
+
     // Update bottom bar
     updateBottomBar();
-    
+
     updateVisibility();
 });
 
@@ -1581,41 +1589,14 @@ let galleryItems = [];
 let galleryRotation = { current: 0, velocity: 0 };
 let galleryAutoRotate = true;
 
-// Gallery layout - more organic with varied positions
+// Gallery layout - ring gallery with camera inside looking outward
+// Camera at z=0, cards arranged in a ring around the camera
 const GALLERY_BASE_RADIUS = 11;
 
 function createGalleryCard(project, angle, radius, yOffset) {
     const group = new THREE.Group();
-    
-    // Add halo for collected projects (radial sprite behind card)
-    let glowSprite = null;
-    if (state.collectedProjects[project.id]) {
-        const glowCanvas = document.createElement('canvas');
-        glowCanvas.width = 256;
-        glowCanvas.height = 256;
-        const glowCtx = glowCanvas.getContext('2d');
-        const gradient = glowCtx.createRadialGradient(128, 128, 0, 128, 128, 128);
-        gradient.addColorStop(0, 'rgba(0,255,204,0.5)');
-        gradient.addColorStop(0.35, 'rgba(0,255,204,0.25)');
-        gradient.addColorStop(0.7, 'rgba(0,255,204,0.08)');
-        gradient.addColorStop(1, 'rgba(0,255,204,0)');
-        glowCtx.fillStyle = gradient;
-        glowCtx.fillRect(0, 0, 256, 256);
-        const glowTexture = new THREE.CanvasTexture(glowCanvas);
-        const glowMaterial = new THREE.SpriteMaterial({
-            map: glowTexture,
-            transparent: true,
-            opacity: 0.6,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false
-        });
-        glowSprite = new THREE.Sprite(glowMaterial);
-        glowSprite.scale.set(3.4, 2.4, 1);
-        glowSprite.position.z = -0.06;
-        group.add(glowSprite);
-    }
-    
-    // Card background
+
+    // Card background with glow effect
     const cardGeometry = new THREE.PlaneGeometry(2.8, 1.8);
     const cardMaterial = new THREE.MeshBasicMaterial({
         color: 0x0a1a1e,
@@ -1625,43 +1606,100 @@ function createGalleryCard(project, angle, radius, yOffset) {
     });
     const card = new THREE.Mesh(cardGeometry, cardMaterial);
     group.add(card);
-    
-    // Card border
+
+    // Card border with glow effect for collected projects
     const borderGeometry = new THREE.EdgesGeometry(cardGeometry);
-    const borderMaterial = new THREE.LineBasicMaterial({ 
-        color: state.collectedProjects[project.id] ? 0x00FFCC : 0x408F98, 
-        transparent: true, 
+    const borderMaterial = new THREE.LineBasicMaterial({
+        color: state.collectedProjects[project.id] ? 0x00FFCC : 0x408F98,
+        transparent: true,
         opacity: state.collectedProjects[project.id] ? 1 : 0.7
     });
     const border = new THREE.LineSegments(borderGeometry, borderMaterial);
     group.add(border);
-    
-    // Create title texture with canvas
+
+    // Add neon glow for collected projects
+    let glowPlane = null;
+    if (state.collectedProjects[project.id]) {
+        const glowCanvas = document.createElement('canvas');
+        glowCanvas.width = 512;
+        glowCanvas.height = 512;
+        const glowCtx = glowCanvas.getContext('2d');
+
+        const centerX = 256;
+        const centerY = 256;
+
+        // Calculate dimensions to match the card (2.8 x 1.8)
+        // We use a larger plane (5.6 x 3.6) to accommodate the glow
+        const planeWidth = 5.6;
+        const planeHeight = 3.6;
+
+        // Map card dimensions to texture coordinates
+        const rectWidth = (2.8 / planeWidth) * glowCanvas.width;
+        const rectHeight = (1.8 / planeHeight) * glowCanvas.height;
+
+        // Helper to draw glow layers
+        const drawGlow = (blur, color, lineWidth) => {
+            glowCtx.shadowBlur = blur;
+            glowCtx.shadowColor = color;
+            glowCtx.strokeStyle = color;
+            glowCtx.lineWidth = lineWidth;
+            // Draw multiple times to intensify
+            glowCtx.strokeRect(centerX - rectWidth / 2, centerY - rectHeight / 2, rectWidth, rectHeight);
+            glowCtx.strokeRect(centerX - rectWidth / 2, centerY - rectHeight / 2, rectWidth, rectHeight);
+        };
+
+        // Layer 1: Wide, soft ambient glow
+        drawGlow(80, 'rgba(0, 255, 204, 0.2)', 4);
+
+        // Layer 2: Medium, distinct glow
+        drawGlow(40, 'rgba(0, 255, 204, 0.4)', 4);
+
+        // Layer 3: Tight, bright core
+        drawGlow(15, 'rgba(0, 255, 204, 0.8)', 3);
+
+        // Layer 4: Hot inner rim (simulating the neon tube)
+        drawGlow(5, 'rgba(200, 255, 240, 0.9)', 2);
+
+        const glowTexture = new THREE.CanvasTexture(glowCanvas);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+            map: glowTexture,
+            transparent: true,
+            opacity: 1,
+            side: THREE.DoubleSide,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+
+        glowPlane = new THREE.Mesh(new THREE.PlaneGeometry(planeWidth, planeHeight), glowMaterial);
+        // Move slightly behind the card
+        glowPlane.position.z = -0.02;
+        group.add(glowPlane);
+    }    // Create title texture with canvas
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     canvas.width = 512;
     canvas.height = 256;
-    
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+
     ctx.font = '600 32px "Azeret Mono", monospace';
     ctx.fillStyle = '#e3e4ff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    
+
     const name = project.name;
     if (name.length > 15) {
         ctx.font = '600 24px "Azeret Mono", monospace';
     }
     ctx.fillText(name, canvas.width / 2, canvas.height / 2);
-    
+
     ctx.font = '200 16px "Azeret Mono", monospace';
     ctx.fillStyle = '#408F98';
     ctx.fillText(project.year || '', canvas.width / 2, canvas.height / 2 + 40);
-    
+
     const textTexture = new THREE.CanvasTexture(canvas);
     textTexture.needsUpdate = true;
-    
+
     const textMaterial = new THREE.MeshBasicMaterial({
         map: textTexture,
         transparent: true,
@@ -1674,7 +1712,7 @@ function createGalleryCard(project, angle, radius, yOffset) {
     textPlane.position.z = 0.01;
     group.add(textPlane);
     group.userData.textPlane = textPlane;
-    
+
     // Load cover image
     if (project.image) {
         const textureLoader = new THREE.TextureLoader();
@@ -1694,7 +1732,7 @@ function createGalleryCard(project, angle, radius, yOffset) {
                 imagePlane.position.z = 0.02;
                 group.add(imagePlane);
                 group.userData.coverImage = imagePlane;
-                
+
                 if (group.userData.textPlane) {
                     group.userData.textPlane.visible = false;
                 }
@@ -1705,15 +1743,15 @@ function createGalleryCard(project, angle, radius, yOffset) {
             }
         );
     }
-    
-    // Position on ring
+
+    // Position on ring - cards face INWARD toward center
     group.position.x = Math.sin(angle) * radius;
     group.position.z = Math.cos(angle) * radius;
     group.position.y = yOffset;
-    
-    // Face camera to minimize perspective skew
-    group.lookAt(camera.position.x, yOffset, camera.position.z);
-    
+
+    // Face toward center (0, yOffset, 0) so cards face inward
+    group.lookAt(0, yOffset, 0);
+
     group.userData = {
         project: project,
         baseAngle: angle,
@@ -1721,10 +1759,10 @@ function createGalleryCard(project, angle, radius, yOffset) {
         yOffset: yOffset,
         card: card,
         border: border,
-        glowSprite: glowSprite,
+        glowPlane: glowPlane,
         hovered: false
     };
-    
+
     return group;
 }
 
@@ -1733,40 +1771,40 @@ function create3DGallery() {
         scene.remove(galleryGroup);
         galleryGroup = null;
     }
-    
+
     galleryGroup = new THREE.Group();
     galleryItems = [];
-    
+
     const projects = PROJECTS_DATA;
     const totalProjects = projects.length;
-    
+
     // Create organic, staggered layout
     // Each card gets a unique position with varied radius and height
     projects.forEach((project, i) => {
         const baseAngle = (i / totalProjects) * Math.PI * 2;
-        
-    // Add slight variation to keep layout organic but reduce distortion
-    const radiusVariation = (i % 3 === 0) ? -0.8 : (i % 3 === 1) ? 0 : 0.8;
-    const radius = GALLERY_BASE_RADIUS + radiusVariation;
-        
+
+        // Add slight variation to keep layout organic but reduce distortion
+        const radiusVariation = (i % 3 === 0) ? -0.8 : (i % 3 === 1) ? 0 : 0.8;
+        const radius = GALLERY_BASE_RADIUS + radiusVariation;
+
         // Stagger heights - create wave-like pattern
         const heightVariation = Math.sin(i * 0.8) * 1.2 + (i % 2 === 0 ? 0.3 : -0.3);
         const yOffset = heightVariation;
-        
+
         // Slight angle offset for more organic feel
         const angleOffset = (i % 2 === 0 ? 0.05 : -0.03);
         const angle = baseAngle + angleOffset;
-        
+
         const item = createGalleryCard(project, angle, radius, yOffset);
         galleryGroup.add(item);
         galleryItems.push(item);
     });
-    
+
     // Decorative floating particles
     const particleCount = 120;
     const particleGeometry = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
-    
+
     for (let i = 0; i < particleCount; i++) {
         const angle = Math.random() * Math.PI * 2;
         const radius = 4 + Math.random() * 10;
@@ -1774,7 +1812,7 @@ function create3DGallery() {
         positions[i * 3 + 1] = (Math.random() - 0.5) * 4;
         positions[i * 3 + 2] = Math.cos(angle) * radius;
     }
-    
+
     particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     const particleMaterial = new THREE.PointsMaterial({
         color: 0x408F98,
@@ -1785,76 +1823,74 @@ function create3DGallery() {
     const particles = new THREE.Points(particleGeometry, particleMaterial);
     galleryGroup.add(particles);
     galleryGroup.userData.particles = particles;
-    
+
     scene.add(galleryGroup);
     galleryGroup.visible = false;
-    
+
     console.log('3D Gallery created with', galleryItems.length, 'items');
 }
 
-function update3DGallery(time) {
+function update3DGallery(time, deltaTime) {
     if (!galleryGroup || state.view !== 'gallery') return;
     camera.lookAt(0, 0, 0);
-    
-    const rotateSpeed = 0.12; // Very slow rotation
-    const friction = 0.96;
-    const autoRotateSpeed = 0.0008;
-    
+
+    // Normalize deltaTime and cap it to prevent huge jumps
+    const dt = Math.min(deltaTime, 0.1);
+    const targetFPS = 60;
+    const frameScale = dt * targetFPS; // Scale to 60fps baseline
+
+    const rotateSpeed = 0.15 * frameScale; // Rotation speed per frame at 60fps
+    const friction = Math.pow(0.96, frameScale); // Frame-rate independent friction
+    const autoRotateSpeed = 0.001; // Very slow auto-rotation
+
     // Keyboard control - reversed to match Field behavior
     if (state.keys.a || state.keys.arrowleft) {
-        galleryRotation.velocity -= rotateSpeed * 0.016;
+        galleryRotation.velocity -= rotateSpeed * 0.01;
         galleryAutoRotate = false;
     }
     if (state.keys.d || state.keys.arrowright) {
-        galleryRotation.velocity += rotateSpeed * 0.016;
+        galleryRotation.velocity += rotateSpeed * 0.01;
         galleryAutoRotate = false;
     }
-    
+
     // Resume auto-rotate when velocity is low
     if (!state.keys.a && !state.keys.d && !state.keys.arrowleft && !state.keys.arrowright) {
-        if (Math.abs(galleryRotation.velocity) < 0.0005) {
+        if (Math.abs(galleryRotation.velocity) < 0.0001) {
             galleryAutoRotate = true;
         }
     }
-    
+
     // Auto rotate
     if (galleryAutoRotate) {
-        galleryRotation.velocity += (autoRotateSpeed - galleryRotation.velocity) * 0.02;
+        galleryRotation.velocity += (autoRotateSpeed - galleryRotation.velocity) * 0.02 * frameScale;
     }
-    
+
     // Apply friction
     galleryRotation.velocity *= friction;
-    
+
     // Update rotation
     galleryRotation.current += galleryRotation.velocity;
     galleryGroup.rotation.y = galleryRotation.current;
-    
+
     // Animate particles
     if (galleryGroup.userData.particles) {
         galleryGroup.userData.particles.rotation.y = -galleryRotation.current * 0.3 + time * 0.05;
     }
-    
-    // Animate halo for collected projects - soft pulsing
-    galleryItems.forEach(item => {
-        if (item.userData.glowSprite) {
-            const pulse = 0.5 + Math.sin(time * 1.5) * 0.25;
-            item.userData.glowSprite.material.opacity = pulse;
-        }
-    });
-    
+
+    // No animation needed - glow is baked into the canvas texture
+
     // Hover detection with raycaster
     state.raycaster.setFromCamera(state.mouse, camera);
     const intersects = state.raycaster.intersectObjects(galleryItems, true);
-    
+
     // Reset all hovers
     galleryItems.forEach(item => {
         if (item.userData.hovered) {
             item.userData.hovered = false;
             gsap.to(item.scale, { x: 1, y: 1, z: 1, duration: 0.3 });
-            gsap.to(item.userData.border.material, { opacity: 0.6, duration: 0.3 });
         }
     });
-    
+
     // Set new hover
     if (intersects.length > 0) {
         let hitItem = intersects[0].object;
@@ -1865,7 +1901,6 @@ function update3DGallery(time) {
         if (hitItem.userData.project) {
             hitItem.userData.hovered = true;
             gsap.to(hitItem.scale, { x: 1.1, y: 1.1, z: 1.1, duration: 0.3 });
-            gsap.to(hitItem.userData.border.material, { opacity: 1, duration: 0.3 });
             document.body.style.cursor = 'pointer';
         }
     } else {
@@ -1875,10 +1910,10 @@ function update3DGallery(time) {
 
 function onGalleryClick() {
     if (state.view !== 'gallery') return;
-    
+
     state.raycaster.setFromCamera(state.mouse, camera);
     const intersects = state.raycaster.intersectObjects(galleryItems, true);
-    
+
     if (intersects.length > 0) {
         let hitItem = intersects[0].object;
         while (hitItem.parent && !hitItem.userData.project) {
@@ -1896,22 +1931,22 @@ function renderGallery() {
     // Render collected projects section
     const collectedGrid = ui.containers.collectedGrid;
     const collectedSection = ui.containers.collectedSection;
-    
+
     if (!collectedGrid || !collectedSection) return;
-    
+
     collectedGrid.innerHTML = '';
-    
+
     const collectedIds = Object.keys(state.collectedProjects);
-    
+
     if (collectedIds.length > 0) {
         collectedSection.classList.add('has-items');
-        
+
         collectedIds.forEach(id => {
             const data = state.collectedProjects[id];
             const project = data.project;
             // Only show up to 3 keywords (the ones used for unlocking)
             const usedKeywords = (data.usedKeywords || []).slice(0, 3);
-            
+
             const item = document.createElement('div');
             item.className = 'gallery-item collected-project-item';
             item.dataset.project = id;
@@ -1925,7 +1960,7 @@ function renderGallery() {
     } else {
         collectedSection.classList.remove('has-items');
     }
-    
+
 }
 
 // Use event delegation for Gallery clicks - more reliable than binding to individual items
@@ -1944,7 +1979,7 @@ function setupGalleryClickHandlers() {
             }
         });
     }
-    
+
     // Event delegation for collected-grid
     const collectedGrid = document.getElementById('collected-grid');
     if (collectedGrid) {
@@ -1977,19 +2012,28 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // --- Animation Loop ---
+let lastTime = performance.now() * 0.001;
 
 function animate() {
     requestAnimationFrame(animate);
-    
+
     const time = performance.now() * 0.001;
-    
+    const deltaTime = time - lastTime;
+    lastTime = time;
+
     // WASD + QE Navigation (Smooth with Inertia)
     // Only active if we are in Field View AND Field Phase is active
     if (state.view === 'field' && state.fieldPhase === 'active') {
-        const accel = 0.008;
-        const rotAccel = 0.0015;
-        const pitchAccel = 0.001; // Pitch acceleration (vertical look)
-        const friction = 0.96;
+        // Normalize deltaTime and cap it to prevent huge jumps
+        const dt = Math.min(deltaTime, 0.1);
+        const targetFPS = 60;
+        const frameScale = dt * targetFPS; // Scale to 60fps baseline
+
+        // Frame-rate independent acceleration and friction
+        const accel = 0.008 * frameScale;
+        const rotAccel = 0.0015 * frameScale;
+        const pitchAccel = 0.001 * frameScale;
+        const friction = Math.pow(0.96, frameScale);
         const minDriftSpeed = 0.0008;
 
         // Acceleration
@@ -1997,7 +2041,7 @@ function animate() {
         if (state.keys.s) state.velocity.z += accel;
         if (state.keys.a) state.rotationVelocity += rotAccel;
         if (state.keys.d) state.rotationVelocity -= rotAccel;
-        
+
         // Pitch control (Q = look down, E = look up) - unlimited rotation
         if (state.keys.e) state.pitchVelocity -= pitchAccel; // Look up
         if (state.keys.q) state.pitchVelocity += pitchAccel; // Look down
@@ -2006,7 +2050,7 @@ function animate() {
         state.velocity.z *= friction;
         state.rotationVelocity *= friction;
         state.pitchVelocity *= friction;
-        
+
         // If velocity is very small, apply a gentle forward drift
         if (Math.abs(state.velocity.z) < minDriftSpeed) {
             state.velocity.z = -minDriftSpeed; // Negative = forward
@@ -2015,7 +2059,7 @@ function animate() {
         // Apply movement and yaw rotation
         camera.translateZ(state.velocity.z);
         camera.rotateY(state.rotationVelocity);
-        
+
         // Apply pitch (vertical rotation) - no limits, infinite rotation
         camera.rotateX(state.pitchVelocity);
     }
@@ -2023,17 +2067,17 @@ function animate() {
     // Update Shader
     bgMaterial.uniforms.uTime.value = time;
     bgMaterial.uniforms.uMouse.value.lerp(state.targetMouse, 0.05);
-    
+
     // Update Particles (Explosion)
     if (particles && particles.visible) {
         const positions = particles.geometry.attributes.position.array;
         const vels = particles.userData.velocities;
-        
-        for(let i=0; i<vels.length; i++) {
-            positions[i*3] += vels[i].x;
-            positions[i*3+1] += vels[i].y;
-            positions[i*3+2] += vels[i].z;
-            
+
+        for (let i = 0; i < vels.length; i++) {
+            positions[i * 3] += vels[i].x;
+            positions[i * 3 + 1] += vels[i].y;
+            positions[i * 3 + 2] += vels[i].z;
+
             // Drag
             vels[i].x *= 0.98;
             vels[i].y *= 0.98;
@@ -2046,37 +2090,37 @@ function animate() {
             particles = null;
         }
     }
-    
+
     // Update Keywords (Field Phase)
     // Only update if visible
     if (keywordGroup && keywordGroup.visible) {
         // Get camera's forward direction for proper Z wrapping
         const cameraDirection = new THREE.Vector3();
         camera.getWorldDirection(cameraDirection);
-        
+
         // Pre-calculate camera axes (do this once, not per mesh)
         const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
         const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
         const camForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-        
+
         keywordGroup.children.forEach(mesh => {
             // BILLBOARD EFFECT: Make meshes face the camera (even selected ones)
             mesh.quaternion.copy(camera.quaternion);
-            
+
             // Skip selected keywords for movement/wrapping (they're fixed at bottom)
             if (mesh.userData.selected || mesh.userData.fixed) return;
-            
+
             // Gentle float
             mesh.position.y += Math.sin(time + mesh.position.x) * 0.002;
-            
+
             // INFINITE LOOP: Wrap keywords around in all directions
             // Calculate position relative to camera in WORLD space
             const toMesh = mesh.position.clone().sub(camera.position);
             const distance = toMesh.length();
-            
+
             // DISTANCE-BASED OPACITY: Fade out far keywords
             let targetOpacity = 0.6;
-            
+
             if (distance > 10 && distance <= 20) {
                 const t = (distance - 10) / 10;
                 targetOpacity = 0.6 - t * 0.35;
@@ -2087,29 +2131,29 @@ function animate() {
                 const t = Math.min(1, (distance - WORLD_SIZE) / 5);
                 targetOpacity = 0.08 * (1 - t);
             }
-            
+
             // Smoothly interpolate opacity
             mesh.material.opacity += (targetOpacity - mesh.material.opacity) * 0.1;
-            
+
             // Get distances along each camera axis
             const distRight = toMesh.dot(camRight);
             const distUp = toMesh.dot(camUp);
             const distForward = toMesh.dot(camForward);
-            
+
             // Wrap along camera's RIGHT axis (left-right)
             if (distRight > WORLD_SIZE) {
                 mesh.position.sub(camRight.clone().multiplyScalar(WORLD_SIZE * 2));
             } else if (distRight < -WORLD_SIZE) {
                 mesh.position.add(camRight.clone().multiplyScalar(WORLD_SIZE * 2));
             }
-            
+
             // Wrap along camera's UP axis (up-down)
             if (distUp > WORLD_SIZE) {
                 mesh.position.sub(camUp.clone().multiplyScalar(WORLD_SIZE * 2));
             } else if (distUp < -WORLD_SIZE) {
                 mesh.position.add(camUp.clone().multiplyScalar(WORLD_SIZE * 2));
             }
-            
+
             // Wrap along camera's FORWARD axis (depth)
             if (distForward > WORLD_SIZE) {
                 mesh.position.sub(camForward.clone().multiplyScalar(WORLD_SIZE * 2));
@@ -2118,7 +2162,7 @@ function animate() {
             }
         });
     }
-    
+
     // Update hint lines (lines to related keywords in 3D space)
     if (hintLines.length > 0) {
         hintLines.forEach(line => {
@@ -2134,10 +2178,10 @@ function animate() {
             }
         });
     }
-    
+
     // Update 3D Gallery
-    update3DGallery(time);
-    
+    update3DGallery(time, deltaTime);
+
     composer.render();
 }
 
