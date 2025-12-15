@@ -975,3 +975,75 @@ h1 {
         font-size: 12vw;
     }
 }
+
+/* ========================================
+   3D GALLERY STYLES
+   ======================================== */
+
+.gallery-instructions {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    color: rgba(255, 255, 255, 0.5);
+    font-family: 'Azeret Mono', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    z-index: 10;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+#gallery-view:not(.hidden) .gallery-instructions {
+    opacity: 1;
+}
+
+.gallery-instructions .key {
+    display: inline-block;
+    padding: 4px 10px;
+    border: 1px solid rgba(64, 143, 152, 0.5);
+    border-radius: 4px;
+    margin: 0 4px;
+    color: #408F98;
+    background: rgba(64, 143, 152, 0.1);
+}
+
+/* ========================================
+   PROJECT MEDIA STYLES
+   ======================================== */
+
+.project-detail-media {
+    margin: 2rem 0;
+    grid-column: 1 / -1;
+}
+
+.project-cover-image {
+    width: 100%;
+    max-width: 900px;
+    height: auto;
+    border-radius: 4px;
+    border: 1px solid rgba(64, 143, 152, 0.3);
+    display: none;
+}
+
+.project-cover-image[src]:not([src=""]) {
+    display: block;
+}
+
+.project-video-container {
+    margin-top: 1.5rem;
+}
+
+.project-video-container:empty {
+    display: none;
+}
+
+.project-video-container iframe {
+    width: 100%;
+    max-width: 900px;
+    aspect-ratio: 16/9;
+    border: none;
+    border-radius: 4px;
+}

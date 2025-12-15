@@ -37,7 +37,6 @@
             <div class="nav-center">
                 <a href="#" id="nav-field" class="nav-link active">Field</a>
                 <a href="#" id="nav-gallery" class="nav-link">Gallery</a>
-                <a href="#" id="nav-search" class="nav-link">Search</a>
             </div>
             <div class="nav-right">
                 <a href="#" id="nav-menu" class="nav-link">Menu</a>
@@ -50,27 +49,9 @@
 
         <!-- Views -->
         <div id="gallery-view" class="view-container hidden">
-            <h2>Gallery</h2>
-            
-            <!-- Collected Projects Section -->
-            <div id="collected-section" class="gallery-section">
-                <h3 class="section-title">Collected</h3>
-                <p class="section-subtitle">Projects you've discovered in the Field</p>
-                <div id="collected-grid" class="gallery-grid">
-                    <!-- Dynamically populated -->
-                </div>
-            </div>
-            
-            <!-- All Projects Section -->
-            <div id="all-projects-section" class="gallery-section">
-                <h3 class="section-title">All Works</h3>
-                <div class="gallery-grid">
-                    <div class="gallery-item" data-project="echo-chamber">ECHO CHAMBER</div>
-                    <div class="gallery-item" data-project="flux-state">FLUX STATE</div>
-                    <div class="gallery-item" data-project="void-interface">VOID INTERFACE</div>
-                    <div class="gallery-item" data-project="particle-memory">PARTICLE MEMORY</div>
-                    <div class="gallery-item" data-project="signal-noise">SIGNAL / NOISE</div>
-                </div>
+            <!-- 3D Gallery rendered by Three.js -->
+            <div class="gallery-instructions">
+                <p>Use <span class="key">A</span> <span class="key">D</span> or <span class="key">←</span> <span class="key">→</span> to rotate</p>
             </div>
         </div>
 
@@ -79,14 +60,6 @@
                 <h2>Anylight</h2>
                 <p>Creative Developer & Interaction Designer.</p>
             </div>
-        </div>
-    </div>
-
-    <!-- Overlays -->
-    <div id="search-overlay" class="overlay hidden">
-        <div class="search-container">
-            <input type="text" id="search-input" placeholder="Search works...">
-            <button id="search-close">×</button>
         </div>
     </div>
 
@@ -130,6 +103,10 @@
                 <span class="project-detail-year"></span>
             </div>
             <div class="project-detail-body">
+                <div class="project-detail-media">
+                    <img class="project-cover-image" src="" alt="">
+                    <div class="project-video-container"></div>
+                </div>
                 <p class="project-detail-description"></p>
                 <div class="project-detail-keywords-section">
                     <span class="keywords-label">Discovered with:</span>

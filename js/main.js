@@ -84,7 +84,7 @@ const KEYWORDS = [...PROJECT_KEYWORDS, ...FILLER_KEYWORDS.filter(k => !PROJECT_K
 
 // --- State ---
 const state = {
-    view: 'field', // field, gallery, about, search, projectDetail
+    view: 'field', // field, gallery, about, projectDetail
     fieldPhase: 'landing', // landing, shattering, active, unlocking, projectReveal
     mouse: new THREE.Vector2(),
     targetMouse: new THREE.Vector2(),
@@ -92,7 +92,7 @@ const state = {
     collectedKeywords: [], // Array of mesh objects
     collectedWords: [], // Array of word strings (for tracking)
     lines: [],
-    keys: { w: false, a: false, s: false, d: false, q: false, e: false },
+    keys: { w: false, a: false, s: false, d: false, q: false, e: false, arrowleft: false, arrowright: false },
     velocity: new THREE.Vector3(),
     rotationVelocity: 0,
     pitchVelocity: 0, // For vertical rotation (Q/E)
@@ -399,17 +399,17 @@ function onMouseMove(event) {
 
 
 function onClick(event) {
+    // Handle Gallery click
+    if (state.view === 'gallery') {
+        onGalleryClick();
+        return;
+    }
+    
     // Only allow interactions if we are in the Field View
     if (state.view !== 'field') return;
 
     // Prevent interaction if clicking on UI elements (Nav, etc.)
-    // Check if the click target is within the UI layer but NOT the canvas
-    // Actually, the UI layer covers everything. We need to check if the target is a specific UI element.
-    // But wait, pointer-events: none is on #ui-layer, so clicks pass through to canvas unless they hit a child with pointer-events: auto.
-    // If the user clicks a nav link, the event listener on the link handles it.
-    // However, the click event might propagate to the window.
-    // Let's check the event target.
-    if (event.target.closest('.nav-link') || event.target.closest('.menu-item') || event.target.closest('.search-container')) {
+    if (event.target.closest('.nav-link') || event.target.closest('.menu-item')) {
         return;
     }
 
@@ -1415,17 +1415,43 @@ function switchView(viewName) {
         if (state.fieldPhase !== 'landing' && state.fieldPhase !== 'shattering') {
             state.fieldPhase = 'active';
         }
+        // Hide 3D Gallery
+        if (galleryGroup) {
+            galleryGroup.visible = false;
+        }
     } else if (viewName === 'gallery') {
         // Keep canvas visible but slightly dimmed
         ui.containers.canvas.style.opacity = '0.7';
-        ui.containers.canvas.style.pointerEvents = 'none';
+        ui.containers.canvas.style.pointerEvents = 'auto'; // Allow clicks for 3D gallery
         ui.views.gallery.classList.remove('hidden');
-        // Render gallery with collected projects
-        renderGallery();
+        
+        // Show and reset 3D Gallery
+        if (galleryGroup) {
+            galleryGroup.visible = true;
+            galleryRotation.current = 0;
+            galleryRotation.velocity = 0;
+            galleryAutoRotate = true;
+            
+            // Move camera to gallery center
+            gsap.to(camera.position, {
+                x: 0, y: 0, z: 0,
+                duration: 0.8,
+                ease: "power2.inOut"
+            });
+            gsap.to(camera.rotation, {
+                x: 0, y: 0, z: 0,
+                duration: 0.8,
+                ease: "power2.inOut"
+            });
+        }
     } else if (viewName === 'about') {
         ui.containers.canvas.style.opacity = '0.7';
         ui.containers.canvas.style.pointerEvents = 'none';
         ui.views.about.classList.remove('hidden');
+        // Hide 3D Gallery
+        if (galleryGroup) {
+            galleryGroup.visible = false;
+        }
     }
     
     updateVisibility();
@@ -1566,7 +1592,255 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// --- Gallery Logic ---
+// --- 3D Gallery System ---
+let galleryGroup = null;
+let galleryItems = [];
+let galleryRotation = { current: 0, velocity: 0 };
+let galleryAutoRotate = true;
+const GALLERY_RADIUS_INNER = 6;
+const GALLERY_RADIUS_OUTER = 10;
+const GALLERY_Y_INNER = 0.5;
+const GALLERY_Y_OUTER = -1.2;
+
+function createGalleryCard(project, index, total, radius, yOffset) {
+    const angle = (index / total) * Math.PI * 2;
+    
+    const group = new THREE.Group();
+    
+    // Card background
+    const cardGeometry = new THREE.PlaneGeometry(2.8, 1.8);
+    const cardMaterial = new THREE.MeshBasicMaterial({
+        color: 0x0a1a1e,
+        transparent: true,
+        opacity: 0.85,
+        side: THREE.DoubleSide
+    });
+    const card = new THREE.Mesh(cardGeometry, cardMaterial);
+    group.add(card);
+    
+    // Card border glow
+    const borderGeometry = new THREE.EdgesGeometry(cardGeometry);
+    const borderMaterial = new THREE.LineBasicMaterial({ 
+        color: 0x408F98, 
+        transparent: true, 
+        opacity: 0.6 
+    });
+    const border = new THREE.LineSegments(borderGeometry, borderMaterial);
+    group.add(border);
+    
+    // Create title texture with canvas
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 512;
+    canvas.height = 256;
+    
+    // Clear background
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw project name
+    ctx.font = '600 32px "Azeret Mono", monospace';
+    ctx.fillStyle = '#e3e4ff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Handle long names
+    const name = project.name;
+    if (name.length > 15) {
+        ctx.font = '600 24px "Azeret Mono", monospace';
+    }
+    ctx.fillText(name, canvas.width / 2, canvas.height / 2 - 15);
+    
+    // Draw year
+    ctx.font = '200 16px "Azeret Mono", monospace';
+    ctx.fillStyle = '#408F98';
+    ctx.fillText(project.year || '', canvas.width / 2, canvas.height / 2 + 25);
+    
+    const textTexture = new THREE.CanvasTexture(canvas);
+    textTexture.needsUpdate = true;
+    
+    const textMaterial = new THREE.MeshBasicMaterial({
+        map: textTexture,
+        transparent: true,
+        depthTest: false
+    });
+    const textPlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(2.6, 1.3),
+        textMaterial
+    );
+    textPlane.position.z = 0.02;
+    group.add(textPlane);
+    
+    // Position on ring
+    group.position.x = Math.sin(angle) * radius;
+    group.position.z = Math.cos(angle) * radius;
+    group.position.y = yOffset;
+    
+    // Face outward (toward viewer in center)
+    group.lookAt(0, yOffset, 0);
+    group.rotateY(Math.PI);
+    
+    group.userData = {
+        project: project,
+        baseAngle: angle,
+        radius: radius,
+        yOffset: yOffset,
+        card: card,
+        border: border,
+        hovered: false
+    };
+    
+    return group;
+}
+
+function create3DGallery() {
+    if (galleryGroup) {
+        scene.remove(galleryGroup);
+        galleryGroup = null;
+    }
+    
+    galleryGroup = new THREE.Group();
+    galleryItems = [];
+    
+    const projects = PROJECTS_DATA;
+    const innerCount = Math.ceil(projects.length / 2);
+    const outerCount = projects.length - innerCount;
+    
+    // Inner ring (top)
+    for (let i = 0; i < innerCount; i++) {
+        const project = projects[i];
+        const item = createGalleryCard(project, i, innerCount, GALLERY_RADIUS_INNER, GALLERY_Y_INNER);
+        galleryGroup.add(item);
+        galleryItems.push(item);
+    }
+    
+    // Outer ring (bottom) - offset by half step for visual interest
+    for (let i = 0; i < outerCount; i++) {
+        const project = projects[innerCount + i];
+        const item = createGalleryCard(project, i + 0.5, outerCount, GALLERY_RADIUS_OUTER, GALLERY_Y_OUTER);
+        galleryGroup.add(item);
+        galleryItems.push(item);
+    }
+    
+    // Decorative floating particles
+    const particleCount = 150;
+    const particleGeometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    
+    for (let i = 0; i < particleCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = GALLERY_RADIUS_INNER - 2 + Math.random() * (GALLERY_RADIUS_OUTER - GALLERY_RADIUS_INNER + 6);
+        positions[i * 3] = Math.sin(angle) * radius;
+        positions[i * 3 + 1] = (Math.random() - 0.5) * 5;
+        positions[i * 3 + 2] = Math.cos(angle) * radius;
+    }
+    
+    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const particleMaterial = new THREE.PointsMaterial({
+        color: 0x408F98,
+        size: 0.04,
+        transparent: true,
+        opacity: 0.35
+    });
+    const particles = new THREE.Points(particleGeometry, particleMaterial);
+    galleryGroup.add(particles);
+    galleryGroup.userData.particles = particles;
+    
+    scene.add(galleryGroup);
+    galleryGroup.visible = false;
+    
+    console.log('3D Gallery created with', galleryItems.length, 'items');
+}
+
+function update3DGallery(time) {
+    if (!galleryGroup || state.view !== 'gallery') return;
+    
+    const rotateSpeed = 0.04;
+    const friction = 0.92;
+    const autoRotateSpeed = 0.002;
+    
+    // Keyboard control
+    if (state.keys.a || state.keys.arrowleft) {
+        galleryRotation.velocity += rotateSpeed * 0.016;
+        galleryAutoRotate = false;
+    }
+    if (state.keys.d || state.keys.arrowright) {
+        galleryRotation.velocity -= rotateSpeed * 0.016;
+        galleryAutoRotate = false;
+    }
+    
+    // Resume auto-rotate when velocity is low
+    if (!state.keys.a && !state.keys.d && !state.keys.arrowleft && !state.keys.arrowright) {
+        if (Math.abs(galleryRotation.velocity) < 0.0005) {
+            galleryAutoRotate = true;
+        }
+    }
+    
+    // Auto rotate
+    if (galleryAutoRotate) {
+        galleryRotation.velocity += (autoRotateSpeed - galleryRotation.velocity) * 0.02;
+    }
+    
+    // Apply friction
+    galleryRotation.velocity *= friction;
+    
+    // Update rotation
+    galleryRotation.current += galleryRotation.velocity;
+    galleryGroup.rotation.y = galleryRotation.current;
+    
+    // Animate particles
+    if (galleryGroup.userData.particles) {
+        galleryGroup.userData.particles.rotation.y = -galleryRotation.current * 0.3 + time * 0.05;
+    }
+    
+    // Hover detection with raycaster
+    state.raycaster.setFromCamera(state.mouse, camera);
+    const intersects = state.raycaster.intersectObjects(galleryItems, true);
+    
+    // Reset all hovers
+    galleryItems.forEach(item => {
+        if (item.userData.hovered) {
+            item.userData.hovered = false;
+            gsap.to(item.scale, { x: 1, y: 1, z: 1, duration: 0.3 });
+            gsap.to(item.userData.border.material, { opacity: 0.6, duration: 0.3 });
+        }
+    });
+    
+    // Set new hover
+    if (intersects.length > 0) {
+        let hitItem = intersects[0].object;
+        // Find the group parent
+        while (hitItem.parent && !hitItem.userData.project) {
+            hitItem = hitItem.parent;
+        }
+        if (hitItem.userData.project) {
+            hitItem.userData.hovered = true;
+            gsap.to(hitItem.scale, { x: 1.1, y: 1.1, z: 1.1, duration: 0.3 });
+            gsap.to(hitItem.userData.border.material, { opacity: 1, duration: 0.3 });
+            document.body.style.cursor = 'pointer';
+        }
+    } else {
+        document.body.style.cursor = 'none';
+    }
+}
+
+function onGalleryClick() {
+    if (state.view !== 'gallery') return;
+    
+    state.raycaster.setFromCamera(state.mouse, camera);
+    const intersects = state.raycaster.intersectObjects(galleryItems, true);
+    
+    if (intersects.length > 0) {
+        let hitItem = intersects[0].object;
+        while (hitItem.parent && !hitItem.userData.project) {
+            hitItem = hitItem.parent;
+        }
+        if (hitItem.userData.project) {
+            showProjectDetail(hitItem.userData.project);
+        }
+    }
+}
+
+// --- Gallery Logic (Legacy - kept for compatibility) ---
 
 function renderGallery() {
     // Render collected projects section
@@ -1811,6 +2085,9 @@ function animate() {
         });
     }
     
+    // Update 3D Gallery
+    update3DGallery(time);
+    
     composer.render();
 }
 
@@ -1830,19 +2107,23 @@ window.addEventListener('click', onClick);
 // Keyboard Controls
 window.addEventListener('keydown', (e) => {
     const key = e.key.toLowerCase();
-    if (state.keys.hasOwnProperty(key)) state.keys[key] = true;
+    if (key === 'arrowleft') state.keys.arrowleft = true;
+    else if (key === 'arrowright') state.keys.arrowright = true;
+    else if (state.keys.hasOwnProperty(key)) state.keys[key] = true;
 });
 
 window.addEventListener('keyup', (e) => {
     const key = e.key.toLowerCase();
-    if (state.keys.hasOwnProperty(key)) state.keys[key] = false;
+    if (key === 'arrowleft') state.keys.arrowleft = false;
+    else if (key === 'arrowright') state.keys.arrowright = false;
+    else if (state.keys.hasOwnProperty(key)) state.keys[key] = false;
 });
 
 // Initialize visibility state on load
 updateVisibility();
 
-// Render initial gallery state
-renderGallery();
+// Initialize 3D Gallery
+create3DGallery();
 
 // Start
 animate();
