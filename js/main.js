@@ -12,76 +12,66 @@ const WORLD_SIZE = 25;
 const MATCH_THRESHOLD = 3; // Number of keywords needed to unlock a project
 
 // --- Projects Data ---
-// Each project has: name, fullSentence (the complete creative intent), keywords (5-8 associated words), description, image
-const PROJECTS_DATA = [
-    {
-        id: 'avatar-zero',
-        name: 'Avatar ZERO',
-        fullSentence: 'A game about choices, and a game about only choices.',
-        keywords: ['CHOICE', 'GAME', 'EXISTENCE', 'DESTINY', 'WILL'],
-        description: 'An interactive installation exploring how digital environments shape and reflect our sense of self. Through real-time audio visualization, participants witness their voices transformed into visual echoes that persist and interact with others in the space.',
-        image: 'assets/projects/avatar-zero/cover.jpg',
-        year: '2025'
-    },
-    {
-        id: 'flux-state',
-        name: 'FLUX STATE',
-        fullSentence: 'The flow of data creates patterns that reveal the hidden momentum and rhythm beneath the chaos of information.',
-        keywords: ['FLOW', 'DATA', 'PATTERN', 'MOMENTUM', 'RHYTHM', 'CHAOS', 'VISUALIZATION'],
-        description: 'A generative visualization system that transforms live data streams into organic, flowing forms. The piece explores how we can find beauty and meaning in the constant flux of digital information.',
-        image: 'assets/projects/flux-state.jpg',
-        year: '2024'
-    },
-    {
-        id: 'void-interface',
-        name: 'VOID INTERFACE',
-        fullSentence: 'At the boundary between void and form, the interface becomes a membrane where human and machine negotiate meaning.',
-        keywords: ['VOID', 'FORM', 'INTERFACE', 'HUMAN', 'SYSTEM', 'INTERACTION', 'DESIGN'],
-        description: 'An experimental interface design that challenges traditional notions of user interaction. By embracing negative space and ambiguity, it creates moments of contemplation within digital experiences.',
-        image: 'assets/projects/void-interface.jpg',
-        year: '2023'
-    },
-    {
-        id: 'particle-memory',
-        name: 'PARTICLE MEMORY',
-        fullSentence: 'Memory exists as particles suspended in time, each fragment carrying the texture and light of lived experience.',
-        keywords: ['PARTICLE', 'MEMORY', 'TIME', 'TEXTURE', 'LIGHT', 'FIELD', 'EXPERIENCE'],
-        description: 'A WebGL experience that visualizes personal memories as particle systems. Users can navigate through clouds of particles, each cluster representing a memory that reveals itself through interaction.',
-        image: 'assets/projects/particle-memory.jpg',
-        year: '2023'
-    },
-    {
-        id: 'signal-noise',
-        name: 'SIGNAL / NOISE',
-        fullSentence: 'In the frequency of modern existence, we must learn to distinguish signal from noise, finding harmony in dissonance.',
-        keywords: ['SIGNAL', 'NOISE', 'FREQUENCY', 'HARMONY', 'DISSONANCE', 'WAVE', 'SENSE'],
-        description: 'An audiovisual performance piece that explores the threshold between meaningful communication and noise. Using custom software, performers modulate between clarity and chaos.',
-        image: 'assets/projects/signal-noise.jpg',
-        year: '2023'
-    }
+// Projects are now loaded from individual project.json files in each project folder
+let PROJECTS_DATA = [];
+
+// List of project IDs to load
+const PROJECT_IDS = [
+    'avatar-zero',
+    'flux-state',
+    'void-interface',
+    'particle-memory',
+    'signal-noise',
+    'midwest-emo-house'
 ];
 
-// Build keyword list from projects + filler words
-const PROJECT_KEYWORDS = [...new Set(PROJECTS_DATA.flatMap(p => p.keywords))];
-// const FILLER_KEYWORDS = [
-//     "WEBGL", "THREE.JS", "CREATIVE", "CODING", "FUTURE",
-//     "ORDER", "ART", "ALGORITHM", "GENERATIVE",
-//     "VIRTUAL", "REALITY", "SHADOW", "FUNCTION", "PROCESS",
-//     "ENTROPY", "SYNTHESIS", "KINETIC", "CYBERNETIC",
-//     "GRAVITY", "HORIZON", "PERSPECTIVE", "DIMENSION", "SCALE",
-//     "VECTOR", "TENSOR", "MATRIX", "NODE", "EDGE", "GRAPH", "TOPOLOGY", "MANIFOLD",
-//     "PROTOTYPE", "FEEDBACK", "LOOP", "CYCLE", "ITERATION",
-//     "CONCEPT", "THEORY", "PRACTICE", "METHOD", "APPROACH",
-//     "SURFACE", "DEPTH", "LAYER", "CORE", "SHELL",
-//     "EXPAND", "CONTRACT", "ROTATE", "TRANSLATE", "TRANSFORM",
-//     "PIXEL", "VOXEL", "MESH", "VERTEX", "POLYGON",
-//     "RENDER", "COMPUTE", "STREAM", "BUFFER",
-//     "INPUT", "OUTPUT", "STATE", "EVENT", "TRIGGER",
-//     "FEEL", "TOUCH", "SIGHT", "SOUND",
-//     "IMMERSIVE", "NARRATIVE", "STRUCTURE", "MOTION"
-// ];
-const FILLER_KEYWORDS = [];
-const KEYWORDS = [...PROJECT_KEYWORDS, ...FILLER_KEYWORDS.filter(k => !PROJECT_KEYWORDS.includes(k))];
+// Load all project data
+async function loadProjectsData() {
+    const promises = PROJECT_IDS.map(async (id) => {
+        try {
+            const response = await fetch(`assets/projects/${id}/project.json`);
+            if (!response.ok) {
+                console.warn(`Failed to load project: ${id}`);
+                return null;
+            }
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error(`Error loading project ${id}:`, error);
+            return null;
+        }
+    });
+
+    const results = await Promise.all(promises);
+    PROJECTS_DATA = results.filter(p => p !== null);
+    console.log(`Loaded ${PROJECTS_DATA.length} projects`);
+
+    // Initialize keywords and UI after loading
+    initializeAfterProjectsLoad();
+}
+
+// Initialize the app after projects are loaded
+function initializeAfterProjectsLoad() {
+    // Rebuild keyword list from loaded projects
+    const PROJECT_KEYWORDS = [...new Set(PROJECTS_DATA.flatMap(p => p.keywords))];
+    const FILLER_KEYWORDS = [];
+
+    // Update global KEYWORDS variable
+    KEYWORDS = [...PROJECT_KEYWORDS, ...FILLER_KEYWORDS.filter(k => !PROJECT_KEYWORDS.includes(k))];
+
+    console.log(`Initialized ${KEYWORDS.length} keywords:`, KEYWORDS);
+
+    // Recreate keywords in scene
+    keywordGroup.children.forEach(mesh => keywordGroup.remove(mesh));
+    createKeywords();
+
+    // Re-render gallery
+    renderGallery();
+    create3DGallery();
+}
+
+// Build keyword list - will be initialized after projects load
+let KEYWORDS = [];
 
 // --- State ---
 const state = {
@@ -216,9 +206,9 @@ keywordGroup.visible = false; // Start hidden, will be shown when entering 'acti
 scene.add(keywordGroup);
 let particles = null;
 
-// --- Font Loader (Removed, using Sprites) ---
-// Pre-generate keywords but keep them hidden
-createKeywords();
+// Keywords will be created after projects load
+// (removed createKeywords() call from here)
+
 
 // --- Functions ---
 
@@ -262,6 +252,12 @@ function createTextSprite(text) {
 }
 
 function createKeywords() {
+    // Safety check - don't create if KEYWORDS is empty
+    if (!KEYWORDS || KEYWORDS.length === 0) {
+        console.warn('KEYWORDS is empty, waiting for projects to load...');
+        return;
+    }
+
     KEYWORDS.forEach((word, i) => {
         const mesh = createTextSprite(word);
 
@@ -562,49 +558,67 @@ function createHintLines(selectedWord) {
     const selectedMesh = keywordGroup.children.find(m => m.userData.word === selectedWord);
     if (!selectedMesh) return;
 
-    // For each related project, draw lines to other keywords of that project
+    // Collect all potential target keywords from all related projects
+    let potentialTargets = new Set();
+
     relatedProjects.forEach(project => {
         // Skip already collected projects
         if (state.collectedProjects[project.id]) return;
 
         project.keywords.forEach(keyword => {
             // Skip the selected word itself and already selected words
-            if (keyword === selectedWord || state.collectedWords.includes(keyword)) return;
-
-            // Find the mesh for this keyword
-            const targetMesh = keywordGroup.children.find(m => m.userData.word === keyword);
-            if (!targetMesh) return;
-
-            // Create a hint line - always visible regardless of distance
-            const points = [selectedMesh.position.clone(), targetMesh.position.clone()];
-            const geometry = new THREE.BufferGeometry().setFromPoints(points);
-            const material = new THREE.LineBasicMaterial({
-                color: 0x5BC0BE, // Brighter cyan
-                transparent: true,
-                opacity: 0, // Start invisible
-                depthTest: false, // Always render on top, visible at any distance
-                depthWrite: false
-            });
-            const line = new THREE.Line(geometry, material);
-            line.renderOrder = 999; // Render after other objects
-            line.userData = {
-                startMesh: selectedMesh,
-                endMesh: targetMesh
-            };
-            scene.add(line);
-            hintLines.push(line);
-
-            // Fade in the line - higher opacity for visibility
-            gsap.to(material, { opacity: 0.4, duration: 1 });
-
-            // Highlight the target keyword more strongly
-            if (!targetMesh.userData.selected && !targetMesh.userData.hinted) {
-                targetMesh.userData.hinted = true;
-                gsap.to(targetMesh.material, { opacity: 1, duration: 0.5 });
-                // Also tint it slightly
-                gsap.to(targetMesh.material.color, { r: 0.36, g: 0.75, b: 0.74, duration: 0.5 });
+            if (keyword !== selectedWord && !state.collectedWords.includes(keyword)) {
+                potentialTargets.add(keyword);
             }
         });
+    });
+
+    // Convert to array and shuffle
+    const targetsArray = Array.from(potentialTargets);
+    // Fisher-Yates shuffle
+    for (let i = targetsArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [targetsArray[i], targetsArray[j]] = [targetsArray[j], targetsArray[i]];
+    }
+
+    // Take max 5
+    const selectedTargets = targetsArray.slice(0, 5);
+
+    // Draw lines to these targets
+    selectedTargets.forEach(keyword => {
+        // Find the mesh for this keyword
+        const targetMesh = keywordGroup.children.find(m => m.userData.word === keyword);
+        if (!targetMesh) return;
+
+        // Create a hint line - always visible regardless of distance
+        const points = [selectedMesh.position.clone(), targetMesh.position.clone()];
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        const material = new THREE.LineBasicMaterial({
+            color: 0x5BC0BE, // Brighter cyan
+            transparent: true,
+            opacity: 0, // Start invisible
+            depthTest: false, // Always render on top, visible at any distance
+            depthWrite: false
+        });
+        const line = new THREE.Line(geometry, material);
+        line.renderOrder = 999; // Render after other objects
+        line.userData = {
+            startMesh: selectedMesh,
+            endMesh: targetMesh
+        };
+        scene.add(line);
+        hintLines.push(line);
+
+        // Fade in the line - higher opacity for visibility
+        gsap.to(material, { opacity: 0.4, duration: 1 });
+
+        // Highlight the target keyword more strongly
+        if (!targetMesh.userData.selected && !targetMesh.userData.hinted) {
+            targetMesh.userData.hinted = true;
+            gsap.to(targetMesh.material, { opacity: 1, duration: 0.5 });
+            // Also tint it slightly
+            gsap.to(targetMesh.material.color, { r: 0.36, g: 0.75, b: 0.74, duration: 0.5 });
+        }
     });
 }
 
@@ -705,19 +719,8 @@ function startUnlockSequence(project, matchedWords) {
     state.fieldPhase = 'unlocking';
     state.currentUnlockingProject = project;
 
-    // Create blur overlay that gradually increases
-    const blurOverlay = document.createElement('div');
-    blurOverlay.id = 'unlock-blur-overlay';
-    blurOverlay.className = 'unlock-blur-overlay';
-    document.body.appendChild(blurOverlay);
-
-    // Animate blur overlay in
-    gsap.fromTo(blurOverlay,
-        { opacity: 0 },
-        { opacity: 1, duration: 0.8, ease: "power2.out" }
-    );
-
-    // Fade out non-selected keywords smoothly
+    // 1. Blur Background (Fade out non-selected keywords)
+    // We do NOT use a DOM overlay here to avoid blocking the view of selected keywords
     keywordGroup.children.forEach(mesh => {
         if (!mesh.userData.selected) {
             gsap.to(mesh.material, { opacity: 0, duration: 0.8 });
@@ -728,236 +731,481 @@ function startUnlockSequence(project, matchedWords) {
     state.lines.forEach(line => {
         gsap.to(line.material, { opacity: 0, duration: 0.5 });
     });
+    clearHintLines();
 
-    // Get matched meshes and gather them toward camera
+    // 2. Move collected keywords to center (DOM Elements for clarity)
+    // Convert 3D meshes to 2D DOM elements to ensure they are sharp and on top
     const matchedMeshes = state.collectedKeywords.filter(m => matchedWords.includes(m.userData.word));
-    const gatherPoint = new THREE.Vector3(
-        camera.position.x,
-        camera.position.y,
-        camera.position.z - 8
-    );
 
-    // Phase 1: Gather keywords to center with staggered timing
-    matchedMeshes.forEach((mesh, i) => {
-        gsap.to(mesh.position, {
-            x: gatherPoint.x + (Math.random() - 0.5) * 2,
-            y: gatherPoint.y + (Math.random() - 0.5) * 1.5,
-            z: gatherPoint.z,
-            duration: 1.2,
-            delay: i * 0.1,
-            ease: "power3.inOut"
-        });
+    // Create a container for these temporary words
+    const tempWordContainer = document.createElement('div');
+    tempWordContainer.id = 'temp-word-container';
+    tempWordContainer.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        display: flex;
+        gap: 2rem;
+        z-index: 100;
+        pointer-events: none;
+    `;
+    document.body.appendChild(tempWordContainer);
 
-        // Pulse the keywords as they move
-        gsap.to(mesh.material, {
-            opacity: 0.8,
-            duration: 0.6,
-            yoyo: true,
-            repeat: 1
-        });
-    });
-
-    // Phase 2: Show sentence after keywords gather
-    setTimeout(() => {
-        showCompleteSentence(project, matchedMeshes, blurOverlay);
-    }, 1400);
-}
-
-function showCompleteSentence(project, matchedMeshes, blurOverlay) {
-    // Create sentence overlay (on top of blur)
-    const sentenceOverlay = document.createElement('div');
-    sentenceOverlay.id = 'sentence-overlay';
-    sentenceOverlay.className = 'sentence-overlay no-bg'; // No background, uses blur overlay
-
-    // Highlight the keywords in the sentence
-    let sentenceHTML = project.fullSentence;
-    project.keywords.forEach(keyword => {
-        const regex = new RegExp(`\\b(${keyword})\\b`, 'gi');
-        sentenceHTML = sentenceHTML.replace(regex, '<span class="highlight-word">$1</span>');
-    });
-
-    sentenceOverlay.innerHTML = `<p class="full-sentence">${sentenceHTML}</p>`;
-    document.body.appendChild(sentenceOverlay);
-
-    // Fade matched 3D keywords out as sentence appears
+    // Hide the 3D meshes immediately
     matchedMeshes.forEach(mesh => {
-        gsap.to(mesh.material, { opacity: 0, duration: 0.8 });
-    });
+        mesh.visible = false;
 
-    // Animate sentence in with letter stagger effect
-    gsap.fromTo(sentenceOverlay,
-        { opacity: 0 },
-        { opacity: 1, duration: 1.2, ease: "power2.out" }
-    );
+        // Create DOM element
+        const span = document.createElement('span');
+        span.textContent = mesh.userData.word;
+        span.style.cssText = `
+            font-family: 'Azeret Mono', monospace;
+            font-size: 2rem;
+            color: #00FFCC;
+            text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+            opacity: 0;
+            transform: scale(0.5);
+        `;
+        tempWordContainer.appendChild(span);
 
-    // Phase 3: Dissolve sentence and reveal project name
-    setTimeout(() => {
-        dissolveSentenceToName(project, sentenceOverlay, blurOverlay);
-    }, 3500);
-}
-
-function dissolveSentenceToName(project, sentenceOverlay, blurOverlay) {
-    // Create particle container for the dissolve effect
-    const particleContainer = document.createElement('div');
-    particleContainer.className = 'particle-container';
-    document.body.appendChild(particleContainer);
-
-    // Get sentence position for particles
-    const sentenceEl = sentenceOverlay.querySelector('.full-sentence');
-    const rect = sentenceEl.getBoundingClientRect();
-
-    // Create particles from sentence position
-    const particleCount = 60;
-    for (let i = 0; i < particleCount; i++) {
-        const particle = document.createElement('div');
-        particle.className = 'dissolve-particle';
-        particle.style.left = (rect.left + Math.random() * rect.width) + 'px';
-        particle.style.top = (rect.top + Math.random() * rect.height) + 'px';
-        particleContainer.appendChild(particle);
-
-        // Animate particle to center then scatter
-        gsap.to(particle, {
-            x: (window.innerWidth / 2 - parseFloat(particle.style.left)) + (Math.random() - 0.5) * 100,
-            y: (window.innerHeight / 2 - parseFloat(particle.style.top)),
-            opacity: 1,
-            scale: 1.5,
-            duration: 0.8,
-            delay: Math.random() * 0.3,
-            ease: "power2.out"
-        });
-    }
-
-    // Fade out sentence
-    gsap.to(sentenceOverlay, {
-        opacity: 0,
-        duration: 0.6,
-        onComplete: () => sentenceOverlay.remove()
-    });
-
-    // After particles gather, form the project name
-    setTimeout(() => {
-        // Scatter particles outward
-        const particles = particleContainer.querySelectorAll('.dissolve-particle');
-        particles.forEach(particle => {
-            gsap.to(particle, {
-                x: '+=' + (Math.random() - 0.5) * 300,
-                y: '+=' + (Math.random() - 0.5) * 200,
-                opacity: 0,
-                scale: 0,
-                duration: 0.8,
-                ease: "power2.in"
-            });
-        });
-
-        // Show project name with particles converging effect
-        setTimeout(() => {
-            particleContainer.remove();
-            showProjectNameWithParticles(project, blurOverlay);
-        }, 400);
-    }, 800);
-}
-
-function showProjectNameWithParticles(project, blurOverlay) {
-    // Create project name element
-    const nameOverlay = document.createElement('div');
-    nameOverlay.id = 'project-name-reveal';
-    nameOverlay.className = 'project-name-reveal';
-    nameOverlay.innerHTML = `<h1 class="project-title-reveal">${project.name}</h1>`;
-    document.body.appendChild(nameOverlay);
-
-    // Create converging particles around the title
-    const particleContainer = document.createElement('div');
-    particleContainer.className = 'title-particle-container';
-    document.body.appendChild(particleContainer);
-
-    const particleCount = 40;
-    for (let i = 0; i < particleCount; i++) {
-        const particle = document.createElement('div');
-        particle.className = 'converge-particle';
-
-        // Start from random positions around the screen edges
-        const angle = (i / particleCount) * Math.PI * 2;
-        const radius = Math.max(window.innerWidth, window.innerHeight) * 0.6;
-        particle.style.left = (window.innerWidth / 2 + Math.cos(angle) * radius) + 'px';
-        particle.style.top = (window.innerHeight / 2 + Math.sin(angle) * radius) + 'px';
-        particle.style.opacity = '0';
-        particleContainer.appendChild(particle);
-
-        // Animate particles converging to center
-        gsap.to(particle, {
-            left: window.innerWidth / 2 + (Math.random() - 0.5) * 200,
-            top: window.innerHeight / 2 + (Math.random() - 0.5) * 100,
-            opacity: 1,
-            duration: 0.8,
-            delay: i * 0.02,
-            ease: "power3.out",
-            onComplete: () => {
-                // Fade out after reaching center
-                gsap.to(particle, {
-                    opacity: 0,
-                    scale: 0,
-                    duration: 0.4,
-                    delay: 0.2
-                });
-            }
-        });
-    }
-
-    // Animate title in - scale up with glow
-    gsap.fromTo(nameOverlay,
-        { opacity: 0, scale: 0.3 },
-        {
+        // Animate in
+        gsap.to(span, {
             opacity: 1,
             scale: 1,
-            duration: 1.2,
-            ease: "back.out(1.4)",
-            delay: 0.3
-        }
-    );
+            duration: 0.8,
+            ease: "back.out(1.7)"
+        });
+    });
 
-    // Clean up particles after animation
-    setTimeout(() => {
-        particleContainer.remove();
-    }, 2000);
+    // Hide bottom bar
+    const bottomBar = document.getElementById('collected-keywords-bar');
+    if (bottomBar) bottomBar.classList.remove('visible');
 
-    // Phase 4: Title stays centered, waits for scroll
+    // Wait for user to see the collected words (2 seconds), then explode
     setTimeout(() => {
-        setupScrollDrivenTransition(project, nameOverlay, blurOverlay);
+        // Remove DOM words
+        gsap.to(tempWordContainer, {
+            opacity: 0,
+            scale: 1.5,
+            duration: 0.3,
+            onComplete: () => tempWordContainer.remove()
+        });
+
+        explodeKeywordsToSentence(project, matchedMeshes, null); // No blur overlay passed
     }, 2500);
 }
 
+function explodeKeywordsToSentence(project, matchedMeshes, blurOverlay) {
+    // 0. Skip blur overlay during this phase - we want particles to be visible
+    // The blur will be created later in transformSentenceToTitle
+    blurOverlay = null;
+
+    // 1. Create Sentence Overlay (Invisible initially, used for positioning)
+    const sentenceOverlay = document.createElement('div');
+    sentenceOverlay.id = 'sentence-overlay';
+    sentenceOverlay.className = 'sentence-overlay no-bg';
+    sentenceOverlay.style.opacity = '0'; // Start invisible
+    sentenceOverlay.innerHTML = `<p class="full-sentence">${project.fullSentence}</p>`;
+    document.body.appendChild(sentenceOverlay);
+
+    // 2. Get positions of all characters in the sentence
+    // We need to wait for render to get positions
+    requestAnimationFrame(() => {
+        const sentenceEl = sentenceOverlay.querySelector('.full-sentence');
+
+        // Ensure sentence element exists
+        if (!sentenceEl) return;
+
+        const particleTargets = [];
+        const textContent = project.fullSentence;
+
+        const chars = textContent.split('');
+        sentenceEl.innerHTML = ''; // Clear
+
+        chars.forEach(char => {
+            const span = document.createElement('span');
+            span.textContent = char;
+            span.style.display = 'inline-block'; // Needed for transform
+            if (char === ' ') span.style.width = '0.5em'; // Preserve spaces
+            sentenceEl.appendChild(span);
+
+            // Store reference for later
+            particleTargets.push({
+                char: char,
+                element: span,
+                rect: null // Will fill next
+            });
+        });
+
+        // Force layout
+        sentenceOverlay.offsetHeight;
+
+        // Get positions
+        particleTargets.forEach(target => {
+            const rect = target.element.getBoundingClientRect();
+            target.rect = rect;
+            // Hide the element initially
+            target.element.style.opacity = '0';
+        });
+
+        // Show overlay container (content is hidden)
+        sentenceOverlay.style.opacity = '1';
+
+        // 3. EXPLOSION!
+        // Create a massive particle system at the center (where keywords are)
+        const centerPos = new THREE.Vector3(0, 0, -5).applyMatrix4(camera.matrixWorld);
+
+        // Remove keyword meshes (they are already hidden, but remove from scene)
+        matchedMeshes.forEach(mesh => {
+            scene.remove(mesh);
+        });
+
+        // Create particles
+        const particleCount = 1500; // Lots of particles
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const colors = new Float32Array(particleCount * 3);
+        const sizes = new Float32Array(particleCount);
+
+        const color1 = new THREE.Color(0x5BC0BE); // Cyan
+        const color2 = new THREE.Color(0xFFFFFF); // White
+
+        for (let i = 0; i < particleCount; i++) {
+            positions[i * 3] = centerPos.x + (Math.random() - 0.5) * 1;
+            positions[i * 3 + 1] = centerPos.y + (Math.random() - 0.5) * 1;
+            positions[i * 3 + 2] = centerPos.z + (Math.random() - 0.5) * 1;
+
+            const mixedColor = color1.clone().lerp(color2, Math.random());
+            colors[i * 3] = mixedColor.r;
+            colors[i * 3 + 1] = mixedColor.g;
+            colors[i * 3 + 2] = mixedColor.b;
+
+            sizes[i] = Math.random() * 0.04 + 0.01;
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+        const material = new THREE.PointsMaterial({
+            size: 0.1,
+            vertexColors: true,
+            transparent: true,
+            opacity: 1,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+
+        const particleSystem = new THREE.Points(geometry, material);
+        scene.add(particleSystem);
+
+        // Animate Explosion - Non-linear expansion
+        // We'll use a custom animation object to drive the positions
+        const particleData = [];
+        for (let i = 0; i < particleCount; i++) {
+            // Random explosion direction
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(Math.random() * 2 - 1);
+            const speed = 5 + Math.random() * 10;
+
+            particleData.push({
+                vx: speed * Math.sin(phi) * Math.cos(theta),
+                vy: speed * Math.sin(phi) * Math.sin(theta),
+                vz: speed * Math.cos(phi),
+                x: positions[i * 3],
+                y: positions[i * 3 + 1],
+                z: positions[i * 3 + 2],
+                targetIndex: Math.floor(Math.random() * particleTargets.length) // Assign a target letter
+            });
+        }
+
+        // Animation Loop for Particles
+        let startTime = performance.now();
+
+        function updateParticles() {
+            const now = performance.now();
+            const elapsed = (now - startTime) / 1000;
+
+            const positions = particleSystem.geometry.attributes.position.array;
+
+            if (elapsed < 1.5) {
+                // Phase 1: Explode Outward
+                for (let i = 0; i < particleCount; i++) {
+                    const data = particleData[i];
+                    // Drag effect
+                    data.vx *= 0.95;
+                    data.vy *= 0.95;
+                    data.vz *= 0.95;
+
+                    data.x += data.vx * 0.05;
+                    data.y += data.vy * 0.05;
+                    data.z += data.vz * 0.05;
+
+                    positions[i * 3] = data.x;
+                    positions[i * 3 + 1] = data.y;
+                    positions[i * 3 + 2] = data.z;
+                }
+            } else if (elapsed < 4.0) {
+                // Phase 2: Converge to Text
+                const t = (elapsed - 1.5) / 2.5; // 0 to 1
+                const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // Ease in out
+
+                for (let i = 0; i < particleCount; i++) {
+                    const data = particleData[i];
+                    const target = particleTargets[data.targetIndex];
+
+                    if (!target || !target.rect) continue;
+
+                    // Convert 2D screen rect to 3D world position
+                    // Normalized Device Coordinates (-1 to +1)
+                    const ndcX = (target.rect.left + target.rect.width / 2) / window.innerWidth * 2 - 1;
+                    const ndcY = -((target.rect.top + target.rect.height / 2) / window.innerHeight) * 2 + 1;
+
+                    // Unproject
+                    const vector = new THREE.Vector3(ndcX, ndcY, 0.5);
+                    vector.unproject(camera);
+                    const dir = vector.sub(camera.position).normalize();
+
+                    // Target depth z = centerPos.z
+                    const targetZ = centerPos.z;
+                    const distanceToPlane = (targetZ - camera.position.z) / dir.z;
+                    const targetPos = camera.position.clone().add(dir.multiplyScalar(distanceToPlane));
+
+                    // Add some jitter within the letter rect
+                    const vFOV = THREE.MathUtils.degToRad(camera.fov);
+                    const visibleHeight = 2 * Math.tan(vFOV / 2) * Math.abs(targetZ - camera.position.z);
+                    const scale = visibleHeight / window.innerHeight;
+
+                    const jitterX = (Math.random() - 0.5) * target.rect.width * scale;
+                    const jitterY = (Math.random() - 0.5) * target.rect.height * scale;
+
+                    targetPos.x += jitterX;
+                    targetPos.y += jitterY;
+
+                    // Lerp current pos to target pos
+                    positions[i * 3] += (targetPos.x - positions[i * 3]) * 0.05;
+                    positions[i * 3 + 1] += (targetPos.y - positions[i * 3 + 1]) * 0.05;
+                    positions[i * 3 + 2] += (targetPos.z - positions[i * 3 + 2]) * 0.05;
+
+                    // Initialize drift velocity if not set
+                    if (!data.driftVx) {
+                        data.driftVx = (Math.random() - 0.5) * 0.01;
+                        data.driftVy = (Math.random() - 0.5) * 0.01;
+                        data.driftVz = (Math.random() - 0.5) * 0.01;
+                    }
+                }
+            } else {
+                // Phase 3: Drift (Keep particles visible while reading)
+                for (let i = 0; i < particleCount; i++) {
+                    const data = particleData[i];
+
+                    // Apply gentle drift
+                    positions[i * 3] += data.driftVx;
+                    positions[i * 3 + 1] += data.driftVy;
+                    positions[i * 3 + 2] += data.driftVz;
+                }
+            }
+
+            particleSystem.geometry.attributes.position.needsUpdate = true;
+
+            // At 4 seconds (when particles have converged), fade in the text
+            if (elapsed > 4.0 && !particleSystem.userData.textShown) {
+                particleSystem.userData.textShown = true;
+
+                // Stagger fade in letters
+                particleTargets.forEach((target, i) => {
+                    gsap.to(target.element, {
+                        opacity: 1,
+                        duration: 0.5,
+                        delay: i * 0.02
+                    });
+                });
+            }
+
+            // At 5 seconds (text fully visible), slowly fade in blur
+            if (elapsed > 5.0 && !particleSystem.userData.blurStarted) {
+                particleSystem.userData.blurStarted = true;
+
+                // Create blur overlay if it doesn't exist
+                if (!blurOverlay) {
+                    blurOverlay = document.createElement('div');
+                    blurOverlay.id = 'unlock-blur-overlay';
+                    blurOverlay.className = 'unlock-blur-overlay';
+                    blurOverlay.style.opacity = '0';
+                    document.body.appendChild(blurOverlay);
+                }
+
+                // Slowly fade in blur over 2 seconds
+                gsap.to(blurOverlay, {
+                    opacity: 1,
+                    duration: 2,
+                    ease: "power2.inOut"
+                });
+            }
+
+            if (elapsed < 15.0) { // Keep animating for 15 seconds (covering the wait time)
+                requestAnimationFrame(updateParticles);
+            } else {
+                // Animation Done - remove particles
+                scene.remove(particleSystem);
+            }
+
+            // Trigger next step at 12 seconds (text at 4s + blur at 5s + 5s reading time)
+            if (elapsed > 12.0 && !particleSystem.userData.triggered) {
+                particleSystem.userData.triggered = true;
+
+                // Proceed to next phase (blur already at full opacity)
+                transformSentenceToTitle(project, sentenceOverlay, blurOverlay);
+            }
+        }
+
+        updateParticles();
+    });
+}
+
+function transformSentenceToTitle(project, sentenceOverlay, blurOverlay) {
+    // 1. Explode Sentence
+    const letters = sentenceOverlay.querySelectorAll('span');
+    letters.forEach(span => {
+        const rect = span.getBoundingClientRect();
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
+        const dirX = (rect.left - centerX);
+        const dirY = (rect.top - centerY);
+
+        gsap.to(span, {
+            x: dirX * 2 + (Math.random() - 0.5) * 500,
+            y: dirY * 2 + (Math.random() - 0.5) * 500,
+            opacity: 0,
+            rotation: Math.random() * 360,
+            duration: 1.5,
+            ease: "power2.in",
+            onComplete: () => {
+                // Remove sentence overlay after animation
+                if (sentenceOverlay && sentenceOverlay.parentNode) {
+                    sentenceOverlay.remove();
+                }
+            }
+        });
+    });
+
+    // 2. Unblur field briefly (as requested)
+    if (blurOverlay) {
+        gsap.to(blurOverlay, { opacity: 0.2, duration: 0.5 });
+    }
+
+    // 3. Rotate/Rearrange field keywords (Visual chaos)
+    keywordGroup.children.forEach(mesh => {
+        gsap.to(mesh.rotation, {
+            x: Math.random() * Math.PI * 2,
+            y: Math.random() * Math.PI * 2,
+            duration: 2
+        });
+        gsap.to(mesh.position, {
+            x: (Math.random() - 0.5) * WORLD_SIZE,
+            y: (Math.random() - 0.5) * WORLD_SIZE,
+            z: (Math.random() - 0.5) * WORLD_SIZE,
+            duration: 2
+        });
+    });
+
+    // 4. Assemble Title
+    // Create Title Overlay
+    const nameOverlay = document.createElement('div');
+    nameOverlay.id = 'project-name-reveal';
+    nameOverlay.className = 'project-name-reveal';
+    // Split title into words for animation
+    const titleWords = project.name.split(' ');
+    const titleHTML = titleWords.map(word => `<span class="title-word">${word}</span>`).join(' ');
+    nameOverlay.innerHTML = `<h1 class="project-title-reveal">${titleHTML}</h1>`;
+    document.body.appendChild(nameOverlay);
+
+    // Style for animation
+    const titleReveal = nameOverlay.querySelector('.project-title-reveal');
+    titleReveal.style.opacity = '1'; // Container visible
+
+    const wordElements = nameOverlay.querySelectorAll('.title-word');
+    wordElements.forEach((el, i) => {
+        // Start from off-screen random positions
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 1000;
+        const startX = Math.cos(angle) * dist;
+        const startY = Math.sin(angle) * dist;
+
+        gsap.fromTo(el,
+            {
+                x: startX,
+                y: startY,
+                rotation: Math.random() * 180 - 90,
+                opacity: 0
+            },
+            {
+                x: 0,
+                y: 0,
+                rotation: 0,
+                opacity: 1,
+                duration: 1.5,
+                delay: 1.5 + i * 0.2, // Wait for sentence explosion
+                ease: "power3.out"
+            }
+        );
+    });
+
+    // 5. Create blur overlay now (for scroll phase) if not exists
+    if (!blurOverlay) {
+        blurOverlay = document.createElement('div');
+        blurOverlay.id = 'unlock-blur-overlay';
+        blurOverlay.className = 'unlock-blur-overlay';
+        blurOverlay.style.opacity = '0';
+        document.body.appendChild(blurOverlay);
+
+        // Fade in blur
+        gsap.to(blurOverlay, { opacity: 1, duration: 1, delay: 2 });
+    } else {
+        // Re-blur field
+        gsap.to(blurOverlay, { opacity: 1, duration: 1, delay: 2 });
+    }
+
+    // 6. Proceed to Scroll Phase
+    // Remove sentence overlay before scroll phase to prevent blocking
+    setTimeout(() => {
+        if (sentenceOverlay && sentenceOverlay.parentNode) {
+            sentenceOverlay.remove();
+        }
+    }, 2000);
+
+    setTimeout(() => {
+        setupScrollDrivenTransition(project, nameOverlay, blurOverlay);
+    }, 3500);
+}
+
+function showCompleteSentence(project, matchedMeshes, blurOverlay) {
+    // Deprecated - replaced by explodeKeywordsToSentence
+}
+
+function dissolveSentenceToName(project, sentenceOverlay, blurOverlay) {
+    // Deprecated - replaced by transformSentenceToTitle
+}
+
+function showProjectNameWithParticles(project, blurOverlay) {
+    // Deprecated - replaced by transformSentenceToTitle
+}
+
+
 // Scroll-driven title animation (like paprikawang)
 function setupScrollDrivenTransition(project, nameOverlay, blurOverlay) {
-    // Create a scroll container that will drive the animation
-    const scrollDriver = document.createElement('div');
-    scrollDriver.id = 'scroll-driver';
-    scrollDriver.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100vh;
-        z-index: 52;
-        overflow-y: auto;
-        overflow-x: hidden;
-        -webkit-overflow-scrolling: touch;
-    `;
+    console.log('setupScrollDrivenTransition called');
 
-    // Inner content to make it scrollable (much taller than viewport)
-    const scrollContent = document.createElement('div');
-    scrollContent.style.cssText = `
-        height: 250vh;
-        width: 100%;
-        pointer-events: none;
-    `;
-    scrollDriver.appendChild(scrollContent);
+    // Keep body locked while we use a temporary scroll driver
+    document.body.style.overflow = 'hidden'; // Keep overflow hidden while scroll driver is active
 
     // Add scroll hint
     const scrollHint = document.createElement('div');
     scrollHint.className = 'scroll-hint';
     scrollHint.innerHTML = `
         <div class="scroll-hint-text">SCROLL TO CONTINUE</div>
-        <div class="scroll-hint-arrow">↓</div>
+        <div class="scroll-hint-arrow">&darr;</div>
     `;
     document.body.appendChild(scrollHint);
 
@@ -967,26 +1215,36 @@ function setupScrollDrivenTransition(project, nameOverlay, blurOverlay) {
         { opacity: 1, y: 0, duration: 0.8, delay: 0.5 }
     );
 
-    document.body.appendChild(scrollDriver);
-
     // Get title element for font-size animation
     const titleReveal = nameOverlay.querySelector('.project-title-reveal');
+
+    // Get actual computed font size to avoid jumps
+    const computedStyle = window.getComputedStyle(titleReveal);
+    const startFontSize = parseFloat(computedStyle.fontSize);
 
     // Initial values (center of screen)
     const startTop = window.innerHeight / 2;
     const startLeft = window.innerWidth / 2;
-    const startFontSize = window.innerWidth * 0.08; // 8vw
 
     // Target values (top-left corner)
     const targetTop = 140;
     const targetLeft = 60;
     const targetFontSize = 48; // 3rem = 48px
 
-    // Scroll threshold (when animation completes)
-    const scrollThreshold = window.innerHeight * 0.8;
+    // Create a real scroll container so wheel + touch both work reliably
+    const scrollDriver = document.createElement('div');
+    scrollDriver.id = 'scroll-driver';
+    const scrollSpacer = document.createElement('div');
+    scrollSpacer.className = 'scroll-driver-spacer';
+    scrollDriver.appendChild(scrollSpacer);
+    document.body.appendChild(scrollDriver);
 
+    // Total scroll amount needed (virtual)
+    const totalScrollNeeded = window.innerHeight * 0.8;
     let animationComplete = false;
     let titleInPosition = false;
+    scrollSpacer.style.height = `${totalScrollNeeded + window.innerHeight}px`;
+    const maxScroll = scrollDriver.scrollHeight - scrollDriver.clientHeight;
 
     // Prepare project detail view content (hidden)
     const detailView = document.getElementById('project-detail-view');
@@ -1006,21 +1264,19 @@ function setupScrollDrivenTransition(project, nameOverlay, blurOverlay) {
     // Hide detail title initially
     titleEl.style.opacity = '0';
 
-    // Scroll handler
+    // Scroll handler - directly drive the animation
     function onScroll() {
-        if (animationComplete) return; // Stop processing once complete
+        if (animationComplete) return;
 
-        const scrollY = scrollDriver.scrollTop;
-        const progress = Math.min(scrollY / scrollThreshold, 1);
-
-        // Easing function for smooth animation
+        const rawProgress = maxScroll > 0 ? (scrollDriver.scrollTop / maxScroll) : 1;
+        const progress = Math.max(0, Math.min(rawProgress, 1));
         const easedProgress = easeInOutCubic(progress);
 
         // Fade out scroll hint as user scrolls
         if (progress > 0 && progress < 0.3) {
-            scrollHint.style.opacity = 1 - (progress / 0.3);
+            scrollHint.style.opacity = String(1 - (progress / 0.3));
         } else if (progress >= 0.3) {
-            scrollHint.style.opacity = 0;
+            scrollHint.style.opacity = '0';
         }
 
         // Interpolate position
@@ -1034,9 +1290,10 @@ function setupScrollDrivenTransition(project, nameOverlay, blurOverlay) {
         nameOverlay.style.transform = `translate(${-50 * (1 - easedProgress)}%, ${-50 * (1 - easedProgress)}%)`;
         titleReveal.style.fontSize = currentFontSize + 'px';
 
-        // When title reaches position, lock scroll and start content animation
+        // When title reaches position, complete animation
         if (progress >= 0.95 && !titleInPosition) {
             titleInPosition = true;
+            animationComplete = true;
 
             // Lock title in final position
             nameOverlay.style.top = targetTop + 'px';
@@ -1044,23 +1301,14 @@ function setupScrollDrivenTransition(project, nameOverlay, blurOverlay) {
             nameOverlay.style.transform = 'translate(0, 0)';
             titleReveal.style.fontSize = targetFontSize + 'px';
 
-            // Prevent further scrolling during content animation
-            scrollDriver.style.overflow = 'hidden';
-
             // Start content slide-in animation
+            scrollDriver.removeEventListener('scroll', onScroll);
             completeScrollTransition(project, nameOverlay, blurOverlay, scrollDriver, scrollHint, detailView, titleEl);
-            animationComplete = true;
         }
     }
 
-    scrollDriver.addEventListener('scroll', onScroll);
-
-    // Prevent scroll jump on wheel event
-    scrollDriver.addEventListener('wheel', (e) => {
-        if (animationComplete) {
-            e.preventDefault();
-        }
-    }, { passive: false });
+    scrollDriver.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
 }
 
 function easeInOutCubic(t) {
@@ -1069,10 +1317,13 @@ function easeInOutCubic(t) {
         : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
+
 function completeScrollTransition(project, nameOverlay, blurOverlay, scrollDriver, scrollHint, detailView, titleEl) {
-    // Remove scroll driver
-    scrollDriver.remove();
-    scrollHint.remove();
+    // Remove scroll hint
+    if (scrollHint) scrollHint.remove();
+
+    // Remove scroll driver if it exists
+    if (scrollDriver) scrollDriver.remove();
 
     // Keep title visible and in final position
     nameOverlay.style.position = 'fixed';
@@ -1082,11 +1333,13 @@ function completeScrollTransition(project, nameOverlay, blurOverlay, scrollDrive
     nameOverlay.style.zIndex = '56'; // Above detail view
 
     // Fade out blur overlay
-    gsap.to(blurOverlay, {
-        opacity: 0,
-        duration: 0.4,
-        onComplete: () => blurOverlay.remove()
-    });
+    if (blurOverlay) {
+        gsap.to(blurOverlay, {
+            opacity: 0,
+            duration: 0.4,
+            onComplete: () => blurOverlay.remove()
+        });
+    }
 
     // Show detail view background first
     detailView.classList.remove('hidden');
@@ -1189,13 +1442,36 @@ function showProjectDetail(project) {
     const detailView = document.getElementById('project-detail-view');
     const titleEl = detailView.querySelector('.project-detail-title');
     const yearEl = detailView.querySelector('.project-detail-year');
-    const descEl = detailView.querySelector('.project-detail-description');
+    const contentEl = detailView.querySelector('.project-detail-content');
     const keywordsEl = detailView.querySelector('.project-detail-keywords');
     const coverImageEl = detailView.querySelector('.project-cover-image');
+    const linksEl = detailView.querySelector('.project-links');
 
     titleEl.textContent = project.name;
     yearEl.textContent = project.year || '';
-    descEl.textContent = project.description;
+
+    // Populate Content
+    if (project.content) {
+        contentEl.innerHTML = project.content;
+    } else {
+        contentEl.innerHTML = `<p>${project.description}</p>`;
+    }
+
+    // Populate Links
+    linksEl.innerHTML = '';
+    if (project.links && project.links.length > 0) {
+        linksEl.style.display = 'flex';
+        project.links.forEach(link => {
+            const a = document.createElement('a');
+            a.href = link.url;
+            a.textContent = link.label;
+            a.target = '_blank';
+            a.className = 'project-link-item';
+            linksEl.appendChild(a);
+        });
+    } else {
+        linksEl.style.display = 'none';
+    }
 
     // Show cover image
     if (project.image) {
@@ -2216,8 +2492,19 @@ window.addEventListener('keyup', (e) => {
 // Initialize visibility state on load
 updateVisibility();
 
-// Initialize 3D Gallery
-create3DGallery();
+// Clean up any leftover overlays from previous sessions
+const leftoverBlur = document.getElementById('unlock-blur-overlay');
+if (leftoverBlur) leftoverBlur.remove();
 
-// Start
-animate();
+const leftoverNameReveal = document.getElementById('project-name-reveal');
+if (leftoverNameReveal) leftoverNameReveal.remove();
+
+// Load projects and initialize app
+loadProjectsData().then(() => {
+    // Start animation loop after projects are loaded
+    animate();
+}).catch(error => {
+    console.error('Failed to load projects:', error);
+    // Start anyway with empty projects
+    animate();
+});

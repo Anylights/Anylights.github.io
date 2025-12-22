@@ -1,0 +1,19 @@
+{
+    "id": "particle-memory",
+    "name": "PARTICLE MEMORY",
+    "fullSentence": "Memory exists as particles suspended in time, each fragment carrying the texture and light of lived experience.",
+    "keywords": [
+        "PARTICLE",
+        "MEMORY",
+        "TIME",
+        "TEXTURE",
+        "LIGHT",
+        "FIELD",
+        "EXPERIENCE"
+    ],
+    "description": "A WebGL experience that visualizes personal memories as particle systems. Users can navigate through clouds of particles, each cluster representing a memory that reveals itself through interaction.",
+    "image": "assets/projects/particle-memory/cover.jpg",
+    "year": "2023",
+    "links": [],
+    "content": ""
+}

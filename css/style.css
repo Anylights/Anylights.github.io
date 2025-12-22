@@ -52,12 +52,13 @@ body {
 
 h1 {
     font-family: 'Doto', sans-serif;
-    font-size: 4rem;
+    font-size: 3rem;
     font-weight: 400;
-    letter-spacing: 0.2em;
+    letter-spacing: 0.5em;
     margin: 0;
     text-transform: uppercase;
     text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+    white-space: nowrap;
 }
 
 /* Custom Cursor */
@@ -673,6 +674,7 @@ h1 {
     background: rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(15px);
     -webkit-backdrop-filter: blur(15px);
+    pointer-events: none;
 }
 
 /* Sentence Overlay */
@@ -689,6 +691,7 @@ h1 {
     background: rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
+    pointer-events: none;
 }
 
 .sentence-overlay.no-bg {
@@ -758,7 +761,7 @@ h1 {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    z-index: 53;
+    z-index: 56;
     pointer-events: none;
     /* Allow transform-origin for smooth corner animation */
     transform-origin: left top;
@@ -766,7 +769,7 @@ h1 {
 
 .project-title-reveal {
     font-family: 'Doto', sans-serif;
-    font-size: 8vw;
+    font-size: 12vw;
     color: #e3e4ff;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -783,7 +786,7 @@ h1 {
     bottom: 80px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 54;
+    z-index: 57;
     text-align: center;
     pointer-events: none;
 }
@@ -813,6 +816,31 @@ h1 {
     50% {
         transform: translateY(8px);
     }
+}
+
+/* Scroll driver for title transition */
+#scroll-driver {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    z-index: 54;
+    background: transparent;
+    pointer-events: auto;
+    scrollbar-width: none;
+}
+
+#scroll-driver::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+}
+
+.scroll-driver-spacer {
+    width: 1px;
+    height: 200vh;
 }
 
 /* ========================================
@@ -1152,4 +1180,237 @@ h1 {
     aspect-ratio: 16/9;
     border: none;
     border-radius: 4px;
+}
+
+/* ========================================
+   PROJECT DETAIL IMPROVEMENTS
+   ======================================== */
+
+/* Override existing grid layout */
+.project-detail-body {
+    display: block;
+    margin-top: 2rem;
+    padding-bottom: 100px;
+}
+
+/* Top Section: Image + Links */
+.project-top-section {
+    display: flex;
+    gap: 3rem;
+    margin-bottom: 3rem;
+    align-items: flex-start;
+}
+
+.project-detail-media {
+    flex: 3;
+    margin: 0;
+}
+
+.project-links {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding-top: 0;
+    min-width: 200px;
+}
+
+.project-link-item {
+    display: block;
+    padding: 1rem 1.5rem;
+    border: 1px solid rgba(64, 143, 152, 0.4);
+    color: #e3e4ff;
+    text-decoration: none;
+    font-family: 'Azeret Mono', monospace;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(5px);
+    text-align: center;
+    letter-spacing: 0.1em;
+    position: relative;
+    overflow: hidden;
+}
+
+.project-link-item:hover {
+    background: rgba(64, 143, 152, 0.2);
+    border-color: #408F98;
+    box-shadow: 0 0 20px rgba(64, 143, 152, 0.2);
+    transform: translateX(-5px);
+}
+
+.project-link-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 2px;
+    height: 100%;
+    background: #408F98;
+    transform: scaleY(0);
+    transition: transform 0.3s ease;
+    transform-origin: bottom;
+}
+
+.project-link-item:hover::before {
+    transform: scaleY(1);
+}
+
+/* Info Grid: Content + Keywords */
+.project-info-grid {
+    display: grid;
+    grid-template-columns: 3fr 1fr;
+    gap: 4rem;
+}
+
+.project-detail-content {
+    font-family: 'Azeret Mono', monospace;
+    color: rgba(227, 228, 255, 0.8);
+    line-height: 1.8;
+    font-size: 1rem;
+}
+
+.project-detail-content p {
+    margin-bottom: 1.5rem;
+}
+
+.project-detail-content img {
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+    margin: 2rem 0;
+    border: 1px solid rgba(64, 143, 152, 0.2);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.project-detail-keywords-section {
+    padding-left: 2rem;
+    border-left: 1px solid rgba(64, 143, 152, 0.3);
+    height: fit-content;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .project-top-section {
+        flex-direction: column;
+    }
+
+    .project-links {
+        width: 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .project-link-item {
+        flex: 1;
+    }
+
+    .project-info-grid {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+
+    .project-detail-keywords-section {
+        padding-left: 0;
+        padding-top: 2rem;
+        border-left: none;
+        border-top: 1px solid rgba(64, 143, 152, 0.3);
+    }
+}
+
+.unlock-blur-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    z-index: 10;
+    pointer-events: none;
+    opacity: 0;
+}
+
+.sentence-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 20;
+    pointer-events: none;
+}
+
+.full-sentence {
+    font-family: 'Azeret Mono', monospace;
+    font-size: 2rem;
+    color: #e3e4ff;
+    text-align: center;
+    max-width: 80%;
+    line-height: 1.5;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+}
+
+.project-name-reveal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 30;
+    pointer-events: none;
+    width: 100%;
+    text-align: center;
+}
+
+.project-title-reveal {
+    font-family: 'Doto', sans-serif;
+    font-size: 3rem;
+    color: #e3e4ff;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin: 0;
+    text-shadow: 0 0 30px rgba(64, 143, 152, 0.8);
+    white-space: nowrap;
+}
+
+.scroll-hint {
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    color: rgba(227, 228, 255, 0.6);
+    font-family: 'Azeret Mono', monospace;
+    font-size: 0.8rem;
+    z-index: 60;
+    pointer-events: none;
+}
+
+.scroll-hint-arrow {
+    font-size: 1.5rem;
+    margin-top: 0.5rem;
+    animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+
+    0%,
+    20%,
+    50%,
+    80%,
+    100% {
+        transform: translateY(0);
+    }
+
+    40% {
+        transform: translateY(-10px);
+    }
+
+    60% {
+        transform: translateY(-5px);
+    }
 }

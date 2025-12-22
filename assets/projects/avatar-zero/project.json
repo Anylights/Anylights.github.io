@@ -1,0 +1,26 @@
+{
+    "id": "avatar-zero",
+    "name": "Avatar ZERO",
+    "fullSentence": "What you choose is your avatar and yourself.",
+    "keywords": [
+        "CHOOSE",
+        "GAME",
+        "EXISTENCE",
+        "AVATAR",
+        "YOURSLEF"
+    ],
+    "description": "A game that is about choice, also only about choice.",
+    "image": "assets/projects/avatar-zero/cover.jpg",
+    "year": "2025",
+    "links": [
+        {
+            "label": "Steam",
+            "url": "https://store.steampowered.com/app/3982600/Avatar_Zero/"
+        },
+        {
+            "label": "BiliBili",
+            "url": "https://www.bilibili.com/video/BV1jXpKzDETg/?spm_id_from=333.1387.homepage.video_card.click&vd_source=51955fc2a3da377e69923b557e6f69d1"
+        }
+    ],
+    "content": "<p>An interactive installation exploring how digital environments shape and reflect our sense of self. Through real-time audio visualization, participants witness their voices transformed into visual echoes that persist and interact with others in the space.</p><p>The project uses WebGL and WebAudio API to create a synesthetic experience where sound becomes sight. Every utterance creates a unique particle system that follows the laws of physics within the digital realm.</p><div class=\"image-grid\"><!-- Placeholder for additional images --></div>"
+}

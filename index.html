@@ -1,19 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WHERE DO WE GO NEXT?</title>
-    
+
     <!-- Safari/macOS theme color - matches the teal gradient background -->
     <meta name="theme-color" content="#2d5a5f" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#2d5a5f" media="(prefers-color-scheme: dark)">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@200&family=Doto:wght@400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@200&family=Doto:wght@400&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <!-- Import Map for Three.js -->
     <script type="importmap">
@@ -26,9 +28,10 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 </head>
+
 <body>
     <div id="canvas-container"></div>
-    
+
     <div id="ui-layer">
         <nav id="main-nav">
             <div class="nav-left">
@@ -51,7 +54,8 @@
         <div id="gallery-view" class="view-container hidden">
             <!-- 3D Gallery rendered by Three.js -->
             <div class="gallery-instructions">
-                <p>Use <span class="key">A</span> <span class="key">D</span> or <span class="key">←</span> <span class="key">→</span> to rotate</p>
+                <p>Use <span class="key">A</span> <span class="key">D</span> or <span class="key">←</span> <span
+                        class="key">→</span> to rotate</p>
             </div>
         </div>
 
@@ -103,14 +107,21 @@
                 <span class="project-detail-year"></span>
             </div>
             <div class="project-detail-body">
-                <div class="project-detail-media">
-                    <img class="project-cover-image" src="" alt="">
-                    <div class="project-video-container"></div>
+                <div class="project-top-section">
+                    <div class="project-detail-media">
+                        <img class="project-cover-image" src="" alt="">
+                        <div class="project-video-container"></div>
+                    </div>
+                    <div class="project-links">
+                        <!-- Links will be populated here -->
+                    </div>
                 </div>
-                <p class="project-detail-description"></p>
-                <div class="project-detail-keywords-section">
-                    <span class="keywords-label">Discovered with:</span>
-                    <div class="project-detail-keywords"></div>
+                <div class="project-info-grid">
+                    <div class="project-detail-content"></div>
+                    <div class="project-detail-keywords-section">
+                        <span class="keywords-label">Discovered with:</span>
+                        <div class="project-detail-keywords"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -127,4 +138,5 @@
 
     <script type="module" src="js/main.js"></script>
 </body>
+
 </html>
