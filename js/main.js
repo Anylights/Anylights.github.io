@@ -1198,14 +1198,14 @@ function setupScrollDrivenTransition(project, nameOverlay, blurOverlay) {
     console.log('setupScrollDrivenTransition called');
 
     // Keep body locked while we use a temporary scroll driver
-    document.body.style.overflow = 'hidden'; // Keep overflow hidden while scroll driver is active
+    document.body.style.overflow = 'hidden';
 
     // Add scroll hint
     const scrollHint = document.createElement('div');
     scrollHint.className = 'scroll-hint';
     scrollHint.innerHTML = `
         <div class="scroll-hint-text">SCROLL TO CONTINUE</div>
-        <div class="scroll-hint-arrow">&darr;</div>
+        <div class="scroll-hint-arrow">↓</div>
     `;
     document.body.appendChild(scrollHint);
 
@@ -1234,81 +1234,141 @@ function setupScrollDrivenTransition(project, nameOverlay, blurOverlay) {
     // Create a real scroll container so wheel + touch both work reliably
     const scrollDriver = document.createElement('div');
     scrollDriver.id = 'scroll-driver';
+    scrollDriver.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        overflow-y: scroll;
+        overflow-x: hidden;
+        z-index: 54;
+        background: transparent;
+        pointer-events: auto;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    `;
+
     const scrollSpacer = document.createElement('div');
     scrollSpacer.className = 'scroll-driver-spacer';
     scrollDriver.appendChild(scrollSpacer);
     document.body.appendChild(scrollDriver);
+
+    console.log('Scroll driver created and added to DOM');
 
     // Total scroll amount needed (virtual)
     const totalScrollNeeded = window.innerHeight * 0.8;
     let animationComplete = false;
     let titleInPosition = false;
     scrollSpacer.style.height = `${totalScrollNeeded + window.innerHeight}px`;
-    const maxScroll = scrollDriver.scrollHeight - scrollDriver.clientHeight;
 
-    // Prepare project detail view content (hidden)
-    const detailView = document.getElementById('project-detail-view');
-    const titleEl = detailView.querySelector('.project-detail-title');
-    const yearEl = detailView.querySelector('.project-detail-year');
-    const descEl = detailView.querySelector('.project-detail-description');
-    const keywordsEl = detailView.querySelector('.project-detail-keywords');
+    // Wait for next frame to ensure element is rendered
+    requestAnimationFrame(() => {
+        const maxScroll = scrollDriver.scrollHeight - scrollDriver.clientHeight;
+        console.log('Scroll driver ready. scrollHeight:', scrollDriver.scrollHeight, 'clientHeight:', scrollDriver.clientHeight, 'maxScroll:', maxScroll);
 
-    titleEl.textContent = project.name;
-    yearEl.textContent = project.year || '';
-    descEl.textContent = project.description;
+        // Prepare project detail view content (hidden)
+        const detailView = document.getElementById('project-detail-view');
+        const titleEl = detailView.querySelector('.project-detail-title');
+        const yearEl = detailView.querySelector('.project-detail-year');
+        const contentEl = detailView.querySelector('.project-detail-content');
+        const keywordsEl = detailView.querySelector('.project-detail-keywords');
+        const coverImageEl = detailView.querySelector('.project-cover-image');
+        const linksEl = detailView.querySelector('.project-links');
 
-    // Show keywords used to unlock
-    const usedKeywords = state.collectedWords;
-    keywordsEl.innerHTML = usedKeywords.map(k => `<span class="detail-keyword">${k}</span>`).join('');
-
-    // Hide detail title initially
-    titleEl.style.opacity = '0';
-
-    // Scroll handler - directly drive the animation
-    function onScroll() {
-        if (animationComplete) return;
-
-        const rawProgress = maxScroll > 0 ? (scrollDriver.scrollTop / maxScroll) : 1;
-        const progress = Math.max(0, Math.min(rawProgress, 1));
-        const easedProgress = easeInOutCubic(progress);
-
-        // Fade out scroll hint as user scrolls
-        if (progress > 0 && progress < 0.3) {
-            scrollHint.style.opacity = String(1 - (progress / 0.3));
-        } else if (progress >= 0.3) {
-            scrollHint.style.opacity = '0';
+        if (!titleEl || !yearEl || !contentEl || !keywordsEl) {
+            console.error('Required project detail elements not found!');
+            return;
         }
 
-        // Interpolate position
-        const currentTop = startTop + (targetTop - startTop) * easedProgress;
-        const currentLeft = startLeft + (targetLeft - startLeft) * easedProgress;
-        const currentFontSize = startFontSize + (targetFontSize - startFontSize) * easedProgress;
+        titleEl.textContent = project.name;
+        yearEl.textContent = project.year || '';
 
-        // Apply transform
-        nameOverlay.style.top = currentTop + 'px';
-        nameOverlay.style.left = currentLeft + 'px';
-        nameOverlay.style.transform = `translate(${-50 * (1 - easedProgress)}%, ${-50 * (1 - easedProgress)}%)`;
-        titleReveal.style.fontSize = currentFontSize + 'px';
-
-        // When title reaches position, complete animation
-        if (progress >= 0.95 && !titleInPosition) {
-            titleInPosition = true;
-            animationComplete = true;
-
-            // Lock title in final position
-            nameOverlay.style.top = targetTop + 'px';
-            nameOverlay.style.left = targetLeft + 'px';
-            nameOverlay.style.transform = 'translate(0, 0)';
-            titleReveal.style.fontSize = targetFontSize + 'px';
-
-            // Start content slide-in animation
-            scrollDriver.removeEventListener('scroll', onScroll);
-            completeScrollTransition(project, nameOverlay, blurOverlay, scrollDriver, scrollHint, detailView, titleEl);
+        // Populate Content
+        if (project.content) {
+            contentEl.innerHTML = project.content;
+        } else {
+            contentEl.innerHTML = `<p>${project.description}</p>`;
         }
-    }
 
-    scrollDriver.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
+        // Populate Links
+        if (linksEl) {
+            linksEl.innerHTML = '';
+            if (project.links && project.links.length > 0) {
+                linksEl.style.display = 'flex';
+                project.links.forEach(link => {
+                    const a = document.createElement('a');
+                    a.href = link.url;
+                    a.textContent = link.label;
+                    a.target = '_blank';
+                    a.className = 'project-link-item';
+                    linksEl.appendChild(a);
+                });
+            } else {
+                linksEl.style.display = 'none';
+            }
+        }
+
+        // Show cover image
+        if (coverImageEl && project.image) {
+            coverImageEl.src = project.image;
+            coverImageEl.style.display = 'block';
+        } else if (coverImageEl) {
+            coverImageEl.src = '';
+            coverImageEl.style.display = 'none';
+        }
+
+        // Scroll handler - directly drive the animation
+        function onScroll() {
+            if (animationComplete) return;
+
+            const rawProgress = maxScroll > 0 ? (scrollDriver.scrollTop / maxScroll) : 1;
+            const progress = Math.max(0, Math.min(rawProgress, 1));
+            const easedProgress = easeInOutCubic(progress);
+
+            console.log('Scroll event - scrollTop:', scrollDriver.scrollTop, 'progress:', progress.toFixed(3));
+
+            // Fade out scroll hint as user scrolls
+            if (progress > 0 && progress < 0.3) {
+                scrollHint.style.opacity = String(1 - (progress / 0.3));
+            } else if (progress >= 0.3) {
+                scrollHint.style.opacity = '0';
+            }
+
+            // Interpolate position
+            const currentTop = startTop + (targetTop - startTop) * easedProgress;
+            const currentLeft = startLeft + (targetLeft - startLeft) * easedProgress;
+            const currentFontSize = startFontSize + (targetFontSize - startFontSize) * easedProgress;
+
+            // Apply transform
+            nameOverlay.style.top = currentTop + 'px';
+            nameOverlay.style.left = currentLeft + 'px';
+            nameOverlay.style.transform = `translate(${-50 * (1 - easedProgress)}%, ${-50 * (1 - easedProgress)}%)`;
+            titleReveal.style.fontSize = currentFontSize + 'px';
+
+            // When title reaches position, complete animation
+            if (progress >= 0.95 && !titleInPosition) {
+                titleInPosition = true;
+                animationComplete = true;
+
+                console.log('Title animation complete!');
+
+                // Lock title in final position
+                nameOverlay.style.top = targetTop + 'px';
+                nameOverlay.style.left = targetLeft + 'px';
+                nameOverlay.style.transform = 'translate(0, 0)';
+                titleReveal.style.fontSize = targetFontSize + 'px';
+
+                // Start content slide-in animation
+                scrollDriver.removeEventListener('scroll', onScroll);
+                completeScrollTransition(project, nameOverlay, blurOverlay, scrollDriver, scrollHint, detailView, titleEl);
+            }
+        }
+
+        scrollDriver.addEventListener('scroll', onScroll, { passive: true });
+        console.log('Scroll listener attached');
+        onScroll(); // Initial call
+    });
 }
 
 function easeInOutCubic(t) {
