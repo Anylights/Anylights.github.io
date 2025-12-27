@@ -20,7 +20,7 @@ const PROJECT_IDS = [
     'avatar-zero',
     'flux-state',
     'void-interface',
-    'particle-memory',
+    'farewell',
     'signal-noise',
     'midwest-emo-house'
 ];
@@ -128,6 +128,10 @@ function resetCollectedProjects() {
     // Reset UI
     updateBottomBar();
     renderGallery();
+    create3DGallery();
+    if (galleryGroup && state.view === 'gallery') {
+        galleryGroup.visible = true;
+    }
 
     // Reset keywords in scene
     keywordGroup.children.forEach(mesh => {
@@ -281,21 +285,34 @@ function createKeywords() {
     });
 }
 
-function createExplosion(position) {
+function createExplosion(originsInput) {
+    const origins = Array.isArray(originsInput) ? originsInput : [originsInput];
+    if (!origins.length) return;
+
     const particleCount = 500;
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
     const velocities = [];
 
     for (let i = 0; i < particleCount; i++) {
-        positions[i * 3] = position.x + (Math.random() - 0.5) * 0.5;
-        positions[i * 3 + 1] = position.y + (Math.random() - 0.5) * 0.2;
-        positions[i * 3 + 2] = position.z;
+        const origin = origins[i % origins.length];
+        positions[i * 3] = origin.x + (Math.random() - 0.5) * 0.6;
+        positions[i * 3 + 1] = origin.y + (Math.random() - 0.5) * 0.4;
+        positions[i * 3 + 2] = origin.z + (Math.random() - 0.5) * 0.4;
+
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(Math.random() * 2 - 1);
+        const speed = 2 + Math.random() * 4;
+        const dir = new THREE.Vector3(
+            Math.sin(phi) * Math.cos(theta),
+            Math.sin(phi) * Math.sin(theta),
+            Math.cos(phi)
+        );
 
         velocities.push({
-            x: (Math.random() - 0.5) * 0.2,
-            y: (Math.random() - 0.5) * 0.2,
-            z: (Math.random() - 0.5) * 0.2
+            x: dir.x * speed,
+            y: dir.y * speed,
+            z: dir.z * speed
         });
     }
 
@@ -308,8 +325,55 @@ function createExplosion(position) {
     });
 
     particles = new THREE.Points(geometry, material);
-    particles.userData = { velocities: velocities };
+    particles.userData = {
+        velocities: velocities,
+        lastTime: performance.now(),
+        age: 0,
+        lifespan: 3.4
+    };
     scene.add(particles);
+}
+
+function getLandingTitleOrigins() {
+    const titleEl = document.querySelector('#landing-title h1');
+    if (!titleEl) return [new THREE.Vector3(0, 0, 0)];
+
+    if (!titleEl.dataset.split) {
+        const text = titleEl.textContent || '';
+        titleEl.innerHTML = text.split('').map(char => {
+            if (char === ' ') return `<span class="landing-char space">&nbsp;</span>`;
+            return `<span class="landing-char">${char}</span>`;
+        }).join('');
+        titleEl.dataset.split = 'true';
+    }
+
+    const spans = Array.from(titleEl.querySelectorAll('.landing-char')).filter(span => !span.classList.contains('space'));
+    if (!spans.length) return [new THREE.Vector3(0, 0, 0)];
+
+    const forward = new THREE.Vector3();
+    camera.getWorldDirection(forward);
+    const planeNormal = forward.clone().normalize();
+    const planePoint = camera.position.clone().add(forward.multiplyScalar(4.2));
+
+    const origins = [];
+    spans.forEach(span => {
+        const rect = span.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+
+        const ndcX = (rect.left + rect.width / 2) / window.innerWidth * 2 - 1;
+        const ndcY = -((rect.top + rect.height / 2) / window.innerHeight) * 2 + 1;
+        const vector = new THREE.Vector3(ndcX, ndcY, 0.5);
+        vector.unproject(camera);
+        const dir = vector.sub(camera.position).normalize();
+        const denom = dir.dot(planeNormal);
+        if (Math.abs(denom) < 1e-4) return;
+
+        const distanceToPlane = planePoint.clone().sub(camera.position).dot(planeNormal) / denom;
+        const pos = camera.position.clone().add(dir.multiplyScalar(distanceToPlane));
+        origins.push(pos);
+    });
+
+    return origins.length ? origins : [new THREE.Vector3(0, 0, 0)];
 }
 
 // --- Interaction ---
@@ -396,6 +460,11 @@ function onMouseMove(event) {
 
 
 function onClick(event) {
+    // Prevent interaction if clicking on UI elements (Nav, etc.)
+    if (event.target.closest('.nav-link') || event.target.closest('.menu-item')) {
+        return;
+    }
+
     // Handle Gallery click
     if (state.view === 'gallery') {
         onGalleryClick();
@@ -405,14 +474,14 @@ function onClick(event) {
     // Only allow interactions if we are in the Field View
     if (state.view !== 'field') return;
 
-    // Prevent interaction if clicking on UI elements (Nav, etc.)
-    if (event.target.closest('.nav-link') || event.target.closest('.menu-item')) {
-        return;
-    }
-
     if (state.fieldPhase === 'landing') {
         // Shatter Title
-        createExplosion(new THREE.Vector3(0, 0, 0));
+        const landingTitle = document.getElementById('landing-title');
+        const origins = getLandingTitleOrigins();
+        createExplosion(origins);
+        if (landingTitle) {
+            landingTitle.style.opacity = '0';
+        }
         state.fieldPhase = 'shattering';
         updateVisibility();
 
@@ -424,7 +493,7 @@ function onClick(event) {
             keywordGroup.children.forEach(mesh => {
                 gsap.to(mesh.material, { opacity: 0.6, duration: 2 });
             });
-        }, 1000);
+        }, 1600);
 
     } else if (state.fieldPhase === 'active') {
         // Raycast for keywords
@@ -640,6 +709,13 @@ function clearHintLines() {
     });
 }
 
+function setHintLinesVisible(visible) {
+    if (!hintLines || hintLines.length === 0) return;
+    hintLines.forEach(line => {
+        line.visible = visible;
+    });
+}
+
 function updateBottomBar() {
     // Update HTML bottom bar with collected words
     const bottomBar = document.getElementById('collected-keywords-bar');
@@ -733,48 +809,47 @@ function startUnlockSequence(project, matchedWords) {
     });
     clearHintLines();
 
-    // 2. Move collected keywords to center (DOM Elements for clarity)
-    // Convert 3D meshes to 2D DOM elements to ensure they are sharp and on top
+    // 2. Move collected keywords to center (stay in 3D, rotate into place)
     const matchedMeshes = state.collectedKeywords.filter(m => matchedWords.includes(m.userData.word));
+    const forward = new THREE.Vector3();
+    camera.getWorldDirection(forward);
+    const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize();
+    const centerAnchor = camera.position.clone().add(forward.multiplyScalar(6));
+    const gap = 0.7;
+    const wordWidths = matchedMeshes.map(mesh => {
+        const baseWidth = mesh.geometry.parameters.width || 1;
+        return baseWidth * (mesh.userData.baseScaleX || 1) * 1.4;
+    });
+    const totalWidth = wordWidths.reduce((sum, w) => sum + w, 0) + gap * Math.max(0, matchedMeshes.length - 1);
+    let cursor = -totalWidth / 2;
 
-    // Create a container for these temporary words
-    const tempWordContainer = document.createElement('div');
-    tempWordContainer.id = 'temp-word-container';
-    tempWordContainer.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        display: flex;
-        gap: 2rem;
-        z-index: 100;
-        pointer-events: none;
-    `;
-    document.body.appendChild(tempWordContainer);
+    matchedMeshes.forEach((mesh, index) => {
+        mesh.visible = true;
+        mesh.renderOrder = 1000;
 
-    // Hide the 3D meshes immediately
-    matchedMeshes.forEach(mesh => {
-        mesh.visible = false;
+        const width = wordWidths[index];
+        const offset = cursor + width / 2;
+        cursor += width + gap;
+        const targetPos = centerAnchor.clone().add(right.clone().multiplyScalar(offset));
 
-        // Create DOM element
-        const span = document.createElement('span');
-        span.textContent = mesh.userData.word;
-        span.style.cssText = `
-            font-family: 'Azeret Mono', monospace;
-            font-size: 2rem;
-            color: #00FFCC;
-            text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
-            opacity: 0;
-            transform: scale(0.5);
-        `;
-        tempWordContainer.appendChild(span);
-
-        // Animate in
-        gsap.to(span, {
-            opacity: 1,
-            scale: 1,
-            duration: 0.8,
-            ease: "back.out(1.7)"
+        gsap.to(mesh.position, {
+            x: targetPos.x,
+            y: targetPos.y,
+            z: targetPos.z,
+            duration: 2.2,
+            ease: "power3.inOut"
+        });
+        gsap.to(mesh.rotation, {
+            y: mesh.rotation.y + Math.PI * 2,
+            duration: 2.2,
+            ease: "power2.inOut"
+        });
+        gsap.to(mesh.scale, {
+            x: mesh.userData.baseScaleX * 1.4,
+            y: mesh.userData.baseScaleY * 1.4,
+            z: 1.4,
+            duration: 2.2,
+            ease: "power3.out"
         });
     });
 
@@ -782,18 +857,10 @@ function startUnlockSequence(project, matchedWords) {
     const bottomBar = document.getElementById('collected-keywords-bar');
     if (bottomBar) bottomBar.classList.remove('visible');
 
-    // Wait for user to see the collected words (2 seconds), then explode
-    setTimeout(() => {
-        // Remove DOM words
-        gsap.to(tempWordContainer, {
-            opacity: 0,
-            scale: 1.5,
-            duration: 0.3,
-            onComplete: () => tempWordContainer.remove()
-        });
-
+    // Wait for user to see the collected words, then explode
+    gsap.delayedCall(2.6, () => {
         explodeKeywordsToSentence(project, matchedMeshes, null); // No blur overlay passed
-    }, 2500);
+    });
 }
 
 function explodeKeywordsToSentence(project, matchedMeshes, blurOverlay) {
@@ -854,11 +921,24 @@ function explodeKeywordsToSentence(project, matchedMeshes, blurOverlay) {
 
         // 3. EXPLOSION!
         // Create a massive particle system at the center (where keywords are)
-        const centerPos = new THREE.Vector3(0, 0, -5).applyMatrix4(camera.matrixWorld);
+        const frozenCamera = camera.clone();
+        frozenCamera.position.copy(camera.position);
+        frozenCamera.quaternion.copy(camera.quaternion);
+        frozenCamera.updateProjectionMatrix();
+        frozenCamera.updateMatrixWorld();
+
+        const centerPos = new THREE.Vector3(0, 0, -5).applyMatrix4(frozenCamera.matrixWorld);
+        const planeNormal = new THREE.Vector3(0, 0, -1).applyQuaternion(frozenCamera.quaternion).normalize();
+        const planeToCamera = new THREE.Vector3().subVectors(centerPos, frozenCamera.position);
 
         // Remove keyword meshes (they are already hidden, but remove from scene)
         matchedMeshes.forEach(mesh => {
-            scene.remove(mesh);
+            mesh.visible = false;
+            if (mesh.parent) {
+                mesh.parent.remove(mesh);
+            } else {
+                scene.remove(mesh);
+            }
         });
 
         // Create particles
@@ -902,6 +982,17 @@ function explodeKeywordsToSentence(project, matchedMeshes, blurOverlay) {
 
         // Animate Explosion - Non-linear expansion
         // We'll use a custom animation object to drive the positions
+        const targetCount = Math.max(1, particleTargets.length);
+        const targetOrder = [];
+        while (targetOrder.length < particleCount) {
+            const block = Array.from({ length: targetCount }, (_, i) => i);
+            for (let j = block.length - 1; j > 0; j--) {
+                const k = Math.floor(Math.random() * (j + 1));
+                [block[j], block[k]] = [block[k], block[j]];
+            }
+            targetOrder.push(...block);
+        }
+
         const particleData = [];
         for (let i = 0; i < particleCount; i++) {
             // Random explosion direction
@@ -916,16 +1007,19 @@ function explodeKeywordsToSentence(project, matchedMeshes, blurOverlay) {
                 x: positions[i * 3],
                 y: positions[i * 3 + 1],
                 z: positions[i * 3 + 2],
-                targetIndex: Math.floor(Math.random() * particleTargets.length) // Assign a target letter
+                targetIndex: targetOrder[i] // Evenly distributed target letters
             });
         }
 
         // Animation Loop for Particles
         let startTime = performance.now();
+        let lastTime = startTime;
 
         function updateParticles() {
             const now = performance.now();
             const elapsed = (now - startTime) / 1000;
+            const delta = Math.min((now - lastTime) / 1000, 0.05);
+            lastTime = now;
 
             const positions = particleSystem.geometry.attributes.position.array;
 
@@ -933,14 +1027,15 @@ function explodeKeywordsToSentence(project, matchedMeshes, blurOverlay) {
                 // Phase 1: Explode Outward
                 for (let i = 0; i < particleCount; i++) {
                     const data = particleData[i];
-                    // Drag effect
-                    data.vx *= 0.95;
-                    data.vy *= 0.95;
-                    data.vz *= 0.95;
+                    // Drag effect (time-based)
+                    const drag = Math.pow(0.15, delta);
+                    data.vx *= drag;
+                    data.vy *= drag;
+                    data.vz *= drag;
 
-                    data.x += data.vx * 0.05;
-                    data.y += data.vy * 0.05;
-                    data.z += data.vz * 0.05;
+                    data.x += data.vx * delta * 7.4;
+                    data.y += data.vy * delta * 7.4;
+                    data.z += data.vz * delta * 7.4;
 
                     positions[i * 3] = data.x;
                     positions[i * 3 + 1] = data.y;
@@ -950,6 +1045,7 @@ function explodeKeywordsToSentence(project, matchedMeshes, blurOverlay) {
                 // Phase 2: Converge to Text
                 const t = (elapsed - 1.5) / 2.5; // 0 to 1
                 const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // Ease in out
+                const lerpFactor = 1 - Math.exp(-6 * delta);
 
                 for (let i = 0; i < particleCount; i++) {
                     const data = particleData[i];
@@ -964,46 +1060,51 @@ function explodeKeywordsToSentence(project, matchedMeshes, blurOverlay) {
 
                     // Unproject
                     const vector = new THREE.Vector3(ndcX, ndcY, 0.5);
-                    vector.unproject(camera);
-                    const dir = vector.sub(camera.position).normalize();
+                    vector.unproject(frozenCamera);
+                    const dir = vector.sub(frozenCamera.position).normalize();
 
-                    // Target depth z = centerPos.z
-                    const targetZ = centerPos.z;
-                    const distanceToPlane = (targetZ - camera.position.z) / dir.z;
-                    const targetPos = camera.position.clone().add(dir.multiplyScalar(distanceToPlane));
+                    const denom = dir.dot(planeNormal);
+                    if (Math.abs(denom) < 1e-4) continue;
+
+                    const distanceToPlane = planeToCamera.dot(planeNormal) / denom;
+                    const targetPos = frozenCamera.position.clone().add(dir.multiplyScalar(distanceToPlane));
 
                     // Add some jitter within the letter rect
-                    const vFOV = THREE.MathUtils.degToRad(camera.fov);
-                    const visibleHeight = 2 * Math.tan(vFOV / 2) * Math.abs(targetZ - camera.position.z);
+                    const vFOV = THREE.MathUtils.degToRad(frozenCamera.fov);
+                    const planeDistance = Math.abs(planeToCamera.dot(planeNormal));
+                    const visibleHeight = 2 * Math.tan(vFOV / 2) * planeDistance;
                     const scale = visibleHeight / window.innerHeight;
 
-                    const jitterX = (Math.random() - 0.5) * target.rect.width * scale;
-                    const jitterY = (Math.random() - 0.5) * target.rect.height * scale;
+                    if (data.jitterX === undefined) data.jitterX = (Math.random() - 0.5);
+                    if (data.jitterY === undefined) data.jitterY = (Math.random() - 0.5);
+                    const jitterX = data.jitterX * target.rect.width * scale;
+                    const jitterY = data.jitterY * target.rect.height * scale;
 
                     targetPos.x += jitterX;
                     targetPos.y += jitterY;
 
                     // Lerp current pos to target pos
-                    positions[i * 3] += (targetPos.x - positions[i * 3]) * 0.05;
-                    positions[i * 3 + 1] += (targetPos.y - positions[i * 3 + 1]) * 0.05;
-                    positions[i * 3 + 2] += (targetPos.z - positions[i * 3 + 2]) * 0.05;
+                    positions[i * 3] += (targetPos.x - positions[i * 3]) * lerpFactor;
+                    positions[i * 3 + 1] += (targetPos.y - positions[i * 3 + 1]) * lerpFactor;
+                    positions[i * 3 + 2] += (targetPos.z - positions[i * 3 + 2]) * lerpFactor;
 
                     // Initialize drift velocity if not set
                     if (!data.driftVx) {
-                        data.driftVx = (Math.random() - 0.5) * 0.01;
-                        data.driftVy = (Math.random() - 0.5) * 0.01;
-                        data.driftVz = (Math.random() - 0.5) * 0.01;
+                        data.driftVx = (Math.random() - 0.5) * 1.2;
+                        data.driftVy = (Math.random() - 0.5) * 1.2;
+                        data.driftVz = (Math.random() - 0.5) * 1.2;
                     }
                 }
             } else {
                 // Phase 3: Drift (Keep particles visible while reading)
+                const scatterSpeed = 1.7;
                 for (let i = 0; i < particleCount; i++) {
                     const data = particleData[i];
 
                     // Apply gentle drift
-                    positions[i * 3] += data.driftVx;
-                    positions[i * 3 + 1] += data.driftVy;
-                    positions[i * 3 + 2] += data.driftVz;
+                    positions[i * 3] += data.driftVx * delta * scatterSpeed;
+                    positions[i * 3 + 1] += data.driftVy * delta * scatterSpeed;
+                    positions[i * 3 + 2] += data.driftVz * delta * scatterSpeed;
                 }
             }
 
@@ -1044,7 +1145,14 @@ function explodeKeywordsToSentence(project, matchedMeshes, blurOverlay) {
                 });
             }
 
-            if (elapsed < 15.0) { // Keep animating for 15 seconds (covering the wait time)
+            const fadeStart = 10.5;
+            const fadeDuration = 4.0;
+            if (elapsed > fadeStart) {
+                const fadeProgress = Math.min((elapsed - fadeStart) / fadeDuration, 1);
+                particleSystem.material.opacity = 1 - fadeProgress;
+            }
+
+            if (particleSystem.material.opacity > 0.02) {
                 requestAnimationFrame(updateParticles);
             } else {
                 // Animation Done - remove particles
@@ -1215,21 +1323,17 @@ function setupScrollDrivenTransition(project, nameOverlay, blurOverlay) {
         { opacity: 1, y: 0, duration: 0.8, delay: 0.5 }
     );
 
-    // Get title element for font-size animation
+    // Get title element for scale animation
     const titleReveal = nameOverlay.querySelector('.project-title-reveal');
 
-    // Get actual computed font size to avoid jumps
-    const computedStyle = window.getComputedStyle(titleReveal);
-    const startFontSize = parseFloat(computedStyle.fontSize);
-
-    // Initial values (center of screen)
-    const startTop = window.innerHeight / 2;
-    const startLeft = window.innerWidth / 2;
-
-    // Target values (top-left corner)
-    const targetTop = 140;
-    const targetLeft = 60;
-    const targetFontSize = 48; // 3rem = 48px
+    // Compute scale target to fully cover the viewport
+    const titleRect = titleReveal.getBoundingClientRect();
+    const coverScale = Math.max(
+        window.innerWidth / Math.max(titleRect.width, 1),
+        window.innerHeight / Math.max(titleRect.height, 1)
+    );
+    const targetScale = coverScale * 1.8;
+    const targetOpacity = 0;
 
     // Create a real scroll container so wheel + touch both work reliably
     const scrollDriver = document.createElement('div');
@@ -1257,7 +1361,7 @@ function setupScrollDrivenTransition(project, nameOverlay, blurOverlay) {
     console.log('Scroll driver created and added to DOM');
 
     // Total scroll amount needed (virtual)
-    const totalScrollNeeded = window.innerHeight * 0.8;
+    const totalScrollNeeded = window.innerHeight * 1.2;
     let animationComplete = false;
     let titleInPosition = false;
     scrollSpacer.style.height = `${totalScrollNeeded + window.innerHeight}px`;
@@ -1335,16 +1439,13 @@ function setupScrollDrivenTransition(project, nameOverlay, blurOverlay) {
                 scrollHint.style.opacity = '0';
             }
 
-            // Interpolate position
-            const currentTop = startTop + (targetTop - startTop) * easedProgress;
-            const currentLeft = startLeft + (targetLeft - startLeft) * easedProgress;
-            const currentFontSize = startFontSize + (targetFontSize - startFontSize) * easedProgress;
+            // Interpolate scale + opacity for "coming toward viewer" effect
+            const currentScale = 1 + (targetScale - 1) * easedProgress;
+            const currentOpacity = 1 + (targetOpacity - 1) * easedProgress;
+            const driftY = 90 * easedProgress - 24;
 
-            // Apply transform
-            nameOverlay.style.top = currentTop + 'px';
-            nameOverlay.style.left = currentLeft + 'px';
-            nameOverlay.style.transform = `translate(${-50 * (1 - easedProgress)}%, ${-50 * (1 - easedProgress)}%)`;
-            titleReveal.style.fontSize = currentFontSize + 'px';
+            nameOverlay.style.transform = `translate(-50%, -50%) scale(${currentScale}) translateY(${driftY}px)`;
+            nameOverlay.style.opacity = String(currentOpacity);
 
             // When title reaches position, complete animation
             if (progress >= 0.95 && !titleInPosition) {
@@ -1353,11 +1454,9 @@ function setupScrollDrivenTransition(project, nameOverlay, blurOverlay) {
 
                 console.log('Title animation complete!');
 
-                // Lock title in final position
-                nameOverlay.style.top = targetTop + 'px';
-                nameOverlay.style.left = targetLeft + 'px';
-                nameOverlay.style.transform = 'translate(0, 0)';
-                titleReveal.style.fontSize = targetFontSize + 'px';
+                // Lock title in final state
+                nameOverlay.style.transform = `translate(-50%, -50%) scale(${targetScale}) translateY(66px)`;
+                nameOverlay.style.opacity = '0';
 
                 // Start content slide-in animation
                 scrollDriver.removeEventListener('scroll', onScroll);
@@ -1385,12 +1484,9 @@ function completeScrollTransition(project, nameOverlay, blurOverlay, scrollDrive
     // Remove scroll driver if it exists
     if (scrollDriver) scrollDriver.remove();
 
-    // Keep title visible and in final position
-    nameOverlay.style.position = 'fixed';
-    nameOverlay.style.top = '140px';
-    nameOverlay.style.left = '60px';
-    nameOverlay.style.transform = 'translate(0, 0)';
-    nameOverlay.style.zIndex = '56'; // Above detail view
+    // Keep title hidden after it blows past the screen
+    nameOverlay.style.opacity = '0';
+    nameOverlay.style.pointerEvents = 'none';
 
     // Fade out blur overlay
     if (blurOverlay) {
@@ -1467,6 +1563,7 @@ function completeScrollTransition(project, nameOverlay, blurOverlay, scrollDrive
                                 usedKeywords: [...state.collectedWords]
                             };
                             saveCollectedProjects();
+                            create3DGallery();
 
                             // Keep canvas visible
                             document.getElementById('canvas-container').style.opacity = '0.7';
@@ -1595,6 +1692,19 @@ function hideProjectDetail() {
             galleryGroup.visible = true;
         }
 
+        gsap.to(camera.position, {
+            x: 0, y: 0, z: 12,
+            duration: 0.8,
+            ease: "power2.inOut"
+        });
+        gsap.to(camera.rotation, {
+            x: 0, y: 0, z: 0,
+            duration: 0.8,
+            ease: "power2.inOut"
+        });
+
+        animateGalleryItemBack();
+
         renderGallery();
     } else {
         // Restore canvas for Field view
@@ -1697,6 +1807,7 @@ function updateVisibility() {
     if (state.view === 'field' && state.fieldPhase === 'landing') {
         landingTitle.style.opacity = '1';
         landingTitle.style.pointerEvents = 'auto';
+        landingTitle.style.transform = 'translate(-50%, -50%) scale(1)';
     } else {
         landingTitle.style.opacity = '0';
         landingTitle.style.pointerEvents = 'none';
@@ -1760,6 +1871,17 @@ function switchView(viewName) {
         // Show Canvas
         ui.containers.canvas.style.opacity = '1';
         ui.containers.canvas.style.pointerEvents = 'auto';
+        gsap.to(camera.position, {
+            x: 0, y: 0, z: 5,
+            duration: 0.8,
+            ease: "power2.inOut"
+        });
+        gsap.to(camera.rotation, {
+            x: 0, y: 0, z: 0,
+            duration: 0.8,
+            ease: "power2.inOut"
+        });
+        setHintLinesVisible(true);
         // Ensure fieldPhase is active so keywords are visible
         // (unless we're in landing phase which shouldn't happen here)
         if (state.fieldPhase !== 'landing' && state.fieldPhase !== 'shattering') {
@@ -1774,6 +1896,7 @@ function switchView(viewName) {
         ui.containers.canvas.style.opacity = '0.7';
         ui.containers.canvas.style.pointerEvents = 'auto'; // Allow clicks for 3D gallery
         ui.views.gallery.classList.remove('hidden');
+        setHintLinesVisible(false);
 
         // Show and reset 3D Gallery
         if (galleryGroup) {
@@ -1782,10 +1905,9 @@ function switchView(viewName) {
             galleryRotation.velocity = 0;
             galleryAutoRotate = true;
 
-            // Move camera to CENTER of the ring gallery (0, 0, 0)
-            // Camera looks outward, cards are arranged around it
+            // Move camera back to view the floating grid
             gsap.to(camera.position, {
-                x: 0, y: 0, z: 0,
+                x: 0, y: 0, z: 12,
                 duration: 0.8,
                 ease: "power2.inOut"
             });
@@ -1834,16 +1956,47 @@ ui.nav.gallery.addEventListener('click', (e) => {
     switchView('gallery');
 });
 
+const MENU_TRANSITION_MS = 500;
+let menuCloseTimer = null;
+
+function openMenu() {
+    if (menuCloseTimer) {
+        clearTimeout(menuCloseTimer);
+        menuCloseTimer = null;
+    }
+    ui.overlays.menu.classList.add('open');
+    document.body.classList.add('menu-open');
+}
+
+function closeMenu() {
+    ui.overlays.menu.classList.remove('open');
+    if (menuCloseTimer) {
+        clearTimeout(menuCloseTimer);
+    }
+    menuCloseTimer = setTimeout(() => {
+        document.body.classList.remove('menu-open');
+        menuCloseTimer = null;
+    }, MENU_TRANSITION_MS);
+}
+
+function toggleMenu() {
+    if (ui.overlays.menu.classList.contains('open')) {
+        closeMenu();
+    } else {
+        openMenu();
+    }
+}
+
 // Menu Listener
 ui.nav.menu.addEventListener('click', (e) => {
     e.preventDefault();
-    ui.overlays.menu.classList.toggle('open');
+    toggleMenu();
 });
 
 // Menu Items Logic
 ui.menuItems.home.addEventListener('click', (e) => {
     e.preventDefault();
-    ui.overlays.menu.classList.remove('open');
+    closeMenu();
 
     // Reset to Field Landing
     switchView('field');
@@ -1873,7 +2026,7 @@ ui.menuItems.home.addEventListener('click', (e) => {
 
 ui.menuItems.about.addEventListener('click', (e) => {
     e.preventDefault();
-    ui.overlays.menu.classList.remove('open');
+    closeMenu();
     switchView('about');
 });
 
@@ -1885,22 +2038,22 @@ ui.menuItems.find.addEventListener('click', (e) => {
 
 ui.menuItems.contact.addEventListener('click', (e) => {
     e.preventDefault();
-    ui.overlays.menu.classList.remove('open');
+    closeMenu();
     ui.overlays.contact.classList.remove('hidden');
 });
 
 ui.menuItems.reset.addEventListener('click', (e) => {
     e.preventDefault();
-    if (confirm('Are you sure you want to reset all collected projects? This action cannot be undone.')) {
+    if (confirm('Clear gallery progress? This action cannot be undone.')) {
         resetCollectedProjects();
-        ui.overlays.menu.classList.remove('open');
+        closeMenu();
         switchView('field');
     }
 });
 
 ui.menuItems.close.addEventListener('click', (e) => {
     e.preventDefault();
-    ui.overlays.menu.classList.remove('open');
+    closeMenu();
 });
 
 ui.inputs.contactClose.addEventListener('click', () => {
@@ -1915,7 +2068,7 @@ ui.inputs.projectDetailBack.addEventListener('click', () => {
 // Close menu when clicking outside (optional, but good UX)
 document.addEventListener('click', (e) => {
     if (!ui.overlays.menu.contains(e.target) && e.target !== ui.nav.menu) {
-        ui.overlays.menu.classList.remove('open');
+        closeMenu();
     }
 });
 
@@ -1924,18 +2077,112 @@ let galleryGroup = null;
 let galleryItems = [];
 let galleryRotation = { current: 0, velocity: 0 };
 let galleryAutoRotate = true;
+let galleryTransition = null;
 
-// Gallery layout - ring gallery with camera inside looking outward
-// Camera at z=0, cards arranged in a ring around the camera
-const GALLERY_BASE_RADIUS = 11;
+// Gallery layout - floating wall grid with gentle depth curvature
+const GALLERY_SPACING_X = 5.4;
+const GALLERY_SPACING_Y = 3.8;
+const GALLERY_CARD_BASE_WIDTH = 3.6;
+const GALLERY_CARD_BASE_HEIGHT = 2.3;
+const GALLERY_CARD_MAX_WIDTH = 4.6;
+const GALLERY_CARD_MAX_HEIGHT = 3.1;
 
-function createGalleryCard(project, angle, radius, yOffset) {
+function createGlowPlane(width, height) {
+    const glowCanvas = document.createElement('canvas');
+    glowCanvas.width = 512;
+    glowCanvas.height = 512;
+    const glowCtx = glowCanvas.getContext('2d');
+
+    const centerX = 256;
+    const centerY = 256;
+
+    const planeWidth = width * 2.2;
+    const planeHeight = height * 2.2;
+    const rectWidth = (width / planeWidth) * glowCanvas.width;
+    const rectHeight = (height / planeHeight) * glowCanvas.height;
+
+    const drawGlow = (blur, color, lineWidth) => {
+        glowCtx.shadowBlur = blur;
+        glowCtx.shadowColor = color;
+        glowCtx.strokeStyle = color;
+        glowCtx.lineWidth = lineWidth;
+        glowCtx.strokeRect(centerX - rectWidth / 2, centerY - rectHeight / 2, rectWidth, rectHeight);
+        glowCtx.strokeRect(centerX - rectWidth / 2, centerY - rectHeight / 2, rectWidth, rectHeight);
+    };
+
+    drawGlow(90, 'rgba(0, 255, 204, 0.25)', 4);
+    drawGlow(50, 'rgba(0, 255, 204, 0.45)', 4);
+    drawGlow(18, 'rgba(0, 255, 204, 0.9)', 3);
+    drawGlow(6, 'rgba(200, 255, 240, 0.95)', 2);
+
+    const glowTexture = new THREE.CanvasTexture(glowCanvas);
+    const glowMaterial = new THREE.MeshBasicMaterial({
+        map: glowTexture,
+        transparent: true,
+        opacity: 1,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+
+    return new THREE.Mesh(new THREE.PlaneGeometry(planeWidth, planeHeight), glowMaterial);
+}
+
+function setGlowPlane(group, width, height, isCollected) {
+    if (group.userData.glowPlane) {
+        group.remove(group.userData.glowPlane);
+        group.userData.glowPlane.geometry.dispose();
+        group.userData.glowPlane.material.dispose();
+        group.userData.glowPlane = null;
+    }
+
+    if (!isCollected) return;
+
+    const glowPlane = createGlowPlane(width, height);
+    glowPlane.position.z = -0.02;
+    group.add(glowPlane);
+    group.userData.glowPlane = glowPlane;
+}
+
+function applyCardSize(group, width, height) {
+    group.userData.cardSize = { width, height };
+
+    group.userData.card.geometry.dispose();
+    group.userData.card.geometry = new THREE.PlaneGeometry(width, height);
+
+    group.userData.border.geometry.dispose();
+    group.userData.border.geometry = new THREE.EdgesGeometry(group.userData.card.geometry);
+
+    const innerWidth = width * 0.96;
+    const innerHeight = height * 0.96;
+
+    if (group.userData.textPlane) {
+        group.userData.textPlane.geometry.dispose();
+        group.userData.textPlane.geometry = new THREE.PlaneGeometry(width * 0.9, height * 0.6);
+    }
+
+    if (group.userData.coverImage) {
+        group.userData.coverImage.geometry.dispose();
+        group.userData.coverImage.geometry = new THREE.PlaneGeometry(innerWidth, innerHeight);
+    }
+
+    if (group.userData.maskPlane) {
+        group.userData.maskPlane.geometry.dispose();
+        group.userData.maskPlane.geometry = new THREE.PlaneGeometry(innerWidth, innerHeight);
+    }
+
+    setGlowPlane(group, width, height, group.userData.isCollected);
+}
+
+function createGalleryCard(project, position) {
     const group = new THREE.Group();
 
+    const isCollected = !!state.collectedProjects[project.id];
+
     // Card background with glow effect
-    const cardGeometry = new THREE.PlaneGeometry(2.8, 1.8);
+    const cardGeometry = new THREE.PlaneGeometry(GALLERY_CARD_BASE_WIDTH, GALLERY_CARD_BASE_HEIGHT);
     const cardMaterial = new THREE.MeshBasicMaterial({
-        color: 0x0a1a1e,
+        color: isCollected ? 0x0c2a30 : 0x0a1a1e,
         transparent: true,
         opacity: 0.95,
         side: THREE.DoubleSide
@@ -1946,71 +2193,21 @@ function createGalleryCard(project, angle, radius, yOffset) {
     // Card border with glow effect for collected projects
     const borderGeometry = new THREE.EdgesGeometry(cardGeometry);
     const borderMaterial = new THREE.LineBasicMaterial({
-        color: state.collectedProjects[project.id] ? 0x00FFCC : 0x408F98,
+        color: isCollected ? 0x8fffe6 : 0x408F98,
         transparent: true,
-        opacity: state.collectedProjects[project.id] ? 1 : 0.7
+        opacity: isCollected ? 1 : 0.7
     });
     const border = new THREE.LineSegments(borderGeometry, borderMaterial);
     group.add(border);
 
-    // Add neon glow for collected projects
     let glowPlane = null;
-    if (state.collectedProjects[project.id]) {
-        const glowCanvas = document.createElement('canvas');
-        glowCanvas.width = 512;
-        glowCanvas.height = 512;
-        const glowCtx = glowCanvas.getContext('2d');
-
-        const centerX = 256;
-        const centerY = 256;
-
-        // Calculate dimensions to match the card (2.8 x 1.8)
-        // We use a larger plane (5.6 x 3.6) to accommodate the glow
-        const planeWidth = 5.6;
-        const planeHeight = 3.6;
-
-        // Map card dimensions to texture coordinates
-        const rectWidth = (2.8 / planeWidth) * glowCanvas.width;
-        const rectHeight = (1.8 / planeHeight) * glowCanvas.height;
-
-        // Helper to draw glow layers
-        const drawGlow = (blur, color, lineWidth) => {
-            glowCtx.shadowBlur = blur;
-            glowCtx.shadowColor = color;
-            glowCtx.strokeStyle = color;
-            glowCtx.lineWidth = lineWidth;
-            // Draw multiple times to intensify
-            glowCtx.strokeRect(centerX - rectWidth / 2, centerY - rectHeight / 2, rectWidth, rectHeight);
-            glowCtx.strokeRect(centerX - rectWidth / 2, centerY - rectHeight / 2, rectWidth, rectHeight);
-        };
-
-        // Layer 1: Wide, soft ambient glow
-        drawGlow(80, 'rgba(0, 255, 204, 0.2)', 4);
-
-        // Layer 2: Medium, distinct glow
-        drawGlow(40, 'rgba(0, 255, 204, 0.4)', 4);
-
-        // Layer 3: Tight, bright core
-        drawGlow(15, 'rgba(0, 255, 204, 0.8)', 3);
-
-        // Layer 4: Hot inner rim (simulating the neon tube)
-        drawGlow(5, 'rgba(200, 255, 240, 0.9)', 2);
-
-        const glowTexture = new THREE.CanvasTexture(glowCanvas);
-        const glowMaterial = new THREE.MeshBasicMaterial({
-            map: glowTexture,
-            transparent: true,
-            opacity: 1,
-            side: THREE.DoubleSide,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false
-        });
-
-        glowPlane = new THREE.Mesh(new THREE.PlaneGeometry(planeWidth, planeHeight), glowMaterial);
-        // Move slightly behind the card
+    if (isCollected) {
+        glowPlane = createGlowPlane(GALLERY_CARD_BASE_WIDTH, GALLERY_CARD_BASE_HEIGHT);
         glowPlane.position.z = -0.02;
         group.add(glowPlane);
-    }    // Create title texture with canvas
+    }
+
+    // Create title texture with canvas
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     canvas.width = 512;
@@ -2042,12 +2239,42 @@ function createGalleryCard(project, angle, radius, yOffset) {
         side: THREE.DoubleSide
     });
     const textPlane = new THREE.Mesh(
-        new THREE.PlaneGeometry(2.6, 1.3),
+        new THREE.PlaneGeometry(GALLERY_CARD_BASE_WIDTH * 0.9, GALLERY_CARD_BASE_HEIGHT * 0.6),
         textMaterial
     );
     textPlane.position.z = 0.01;
     group.add(textPlane);
     group.userData.textPlane = textPlane;
+
+    const maskMaterial = new THREE.MeshBasicMaterial({
+        color: 0x0f1a1d,
+        transparent: true,
+        opacity: 0.55,
+        side: THREE.DoubleSide,
+        depthWrite: false
+    });
+    const maskPlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(GALLERY_CARD_BASE_WIDTH * 0.96, GALLERY_CARD_BASE_HEIGHT * 0.96),
+        maskMaterial
+    );
+    maskPlane.position.z = 0.03;
+    maskPlane.visible = !isCollected;
+    group.add(maskPlane);
+
+    group.userData = {
+        project: project,
+        basePosition: position.clone(),
+        floatSeed: Math.random() * Math.PI * 2,
+        card: card,
+        border: border,
+        glowPlane: glowPlane,
+        textPlane: textPlane,
+        maskPlane: maskPlane,
+        coverImage: null,
+        cardSize: { width: GALLERY_CARD_BASE_WIDTH, height: GALLERY_CARD_BASE_HEIGHT },
+        isCollected: isCollected,
+        hovered: false
+    };
 
     // Load cover image
     if (project.image) {
@@ -2061,17 +2288,32 @@ function createGalleryCard(project, angle, radius, yOffset) {
                     opacity: 1,
                     side: THREE.DoubleSide
                 });
-                const imagePlane = new THREE.Mesh(
-                    new THREE.PlaneGeometry(2.6, 1.46),
-                    imageMaterial
-                );
-                imagePlane.position.z = 0.02;
-                group.add(imagePlane);
-                group.userData.coverImage = imagePlane;
+                let imagePlane = group.userData.coverImage;
+                if (!imagePlane) {
+                    imagePlane = new THREE.Mesh(
+                        new THREE.PlaneGeometry(GALLERY_CARD_BASE_WIDTH * 0.96, GALLERY_CARD_BASE_HEIGHT * 0.96),
+                        imageMaterial
+                    );
+                    imagePlane.position.z = 0.02;
+                    group.add(imagePlane);
+                    group.userData.coverImage = imagePlane;
+                } else {
+                    imagePlane.material = imageMaterial;
+                }
 
                 if (group.userData.textPlane) {
                     group.userData.textPlane.visible = false;
                 }
+
+                const aspect = texture.image.width / texture.image.height;
+                let targetWidth = GALLERY_CARD_MAX_WIDTH;
+                let targetHeight = targetWidth / aspect;
+                if (targetHeight > GALLERY_CARD_MAX_HEIGHT) {
+                    targetHeight = GALLERY_CARD_MAX_HEIGHT;
+                    targetWidth = targetHeight * aspect;
+                }
+
+                applyCardSize(group, targetWidth, targetHeight);
             },
             undefined,
             (error) => {
@@ -2080,24 +2322,7 @@ function createGalleryCard(project, angle, radius, yOffset) {
         );
     }
 
-    // Position on ring - cards face INWARD toward center
-    group.position.x = Math.sin(angle) * radius;
-    group.position.z = Math.cos(angle) * radius;
-    group.position.y = yOffset;
-
-    // Face toward center (0, yOffset, 0) so cards face inward
-    group.lookAt(0, yOffset, 0);
-
-    group.userData = {
-        project: project,
-        baseAngle: angle,
-        radius: radius,
-        yOffset: yOffset,
-        card: card,
-        border: border,
-        glowPlane: glowPlane,
-        hovered: false
-    };
+    group.position.copy(position);
 
     return group;
 }
@@ -2110,28 +2335,28 @@ function create3DGallery() {
 
     galleryGroup = new THREE.Group();
     galleryItems = [];
+    galleryTransition = null;
 
     const projects = PROJECTS_DATA;
     const totalProjects = projects.length;
+    const cols = Math.ceil(Math.sqrt(totalProjects));
+    const rows = Math.ceil(totalProjects / cols);
+    const startX = -((cols - 1) * GALLERY_SPACING_X) / 2;
+    const startY = ((rows - 1) * GALLERY_SPACING_Y) / 2;
 
-    // Create organic, staggered layout
-    // Each card gets a unique position with varied radius and height
     projects.forEach((project, i) => {
-        const baseAngle = (i / totalProjects) * Math.PI * 2;
+        const row = Math.floor(i / cols);
+        const col = i % cols;
+        const stagger = (row % 2 === 0 ? -0.22 : 0.22) * GALLERY_SPACING_X;
+        const jitterX = (Math.random() - 0.5) * 0.4;
+        const jitterY = (Math.random() - 0.5) * 0.3;
+        const x = startX + col * GALLERY_SPACING_X + stagger + jitterX;
+        const y = startY - row * GALLERY_SPACING_Y + jitterY + Math.sin(col * 0.6 + row * 0.4) * 0.3;
+        const colOffset = cols > 1 ? (col - (cols - 1) / 2) / ((cols - 1) / 2) : 0;
+        const z = -Math.abs(colOffset) * 2.1 + (Math.random() - 0.5) * 0.6 + Math.sin(row * 0.7) * 0.3;
+        const position = new THREE.Vector3(x, y, z);
 
-        // Add slight variation to keep layout organic but reduce distortion
-        const radiusVariation = (i % 3 === 0) ? -0.8 : (i % 3 === 1) ? 0 : 0.8;
-        const radius = GALLERY_BASE_RADIUS + radiusVariation;
-
-        // Stagger heights - create wave-like pattern
-        const heightVariation = Math.sin(i * 0.8) * 1.2 + (i % 2 === 0 ? 0.3 : -0.3);
-        const yOffset = heightVariation;
-
-        // Slight angle offset for more organic feel
-        const angleOffset = (i % 2 === 0 ? 0.05 : -0.03);
-        const angle = baseAngle + angleOffset;
-
-        const item = createGalleryCard(project, angle, radius, yOffset);
+        const item = createGalleryCard(project, position);
         galleryGroup.add(item);
         galleryItems.push(item);
     });
@@ -2143,10 +2368,10 @@ function create3DGallery() {
 
     for (let i = 0; i < particleCount; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const radius = 4 + Math.random() * 10;
+        const radius = 6 + Math.random() * 12;
         positions[i * 3] = Math.sin(angle) * radius;
-        positions[i * 3 + 1] = (Math.random() - 0.5) * 4;
-        positions[i * 3 + 2] = Math.cos(angle) * radius;
+        positions[i * 3 + 1] = (Math.random() - 0.5) * 6;
+        positions[i * 3 + 2] = Math.cos(angle) * radius - 8;
     }
 
     particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -2170,50 +2395,45 @@ function update3DGallery(time, deltaTime) {
     if (!galleryGroup || state.view !== 'gallery') return;
     camera.lookAt(0, 0, 0);
 
-    // Normalize deltaTime and cap it to prevent huge jumps
-    const dt = Math.min(deltaTime, 0.1);
-    const targetFPS = 60;
-    const frameScale = dt * targetFPS; // Scale to 60fps baseline
-
-    const rotateSpeed = 0.15 * frameScale; // Rotation speed per frame at 60fps
-    const friction = Math.pow(0.96, frameScale); // Frame-rate independent friction
-    const autoRotateSpeed = 0.001; // Very slow auto-rotation
-
-    // Keyboard control - reversed to match Field behavior
-    if (state.keys.a || state.keys.arrowleft) {
-        galleryRotation.velocity -= rotateSpeed * 0.01;
-        galleryAutoRotate = false;
-    }
-    if (state.keys.d || state.keys.arrowright) {
-        galleryRotation.velocity += rotateSpeed * 0.01;
-        galleryAutoRotate = false;
-    }
-
-    // Resume auto-rotate when velocity is low
-    if (!state.keys.a && !state.keys.d && !state.keys.arrowleft && !state.keys.arrowright) {
-        if (Math.abs(galleryRotation.velocity) < 0.0001) {
-            galleryAutoRotate = true;
-        }
-    }
-
-    // Auto rotate
-    if (galleryAutoRotate) {
-        galleryRotation.velocity += (autoRotateSpeed - galleryRotation.velocity) * 0.02 * frameScale;
-    }
-
-    // Apply friction
-    galleryRotation.velocity *= friction;
-
-    // Update rotation
-    galleryRotation.current += galleryRotation.velocity;
-    galleryGroup.rotation.y = galleryRotation.current;
+    galleryGroup.rotation.y = Math.sin(time * 0.08) * 0.04;
+    galleryGroup.rotation.x = Math.sin(time * 0.06) * 0.02;
 
     // Animate particles
     if (galleryGroup.userData.particles) {
-        galleryGroup.userData.particles.rotation.y = -galleryRotation.current * 0.3 + time * 0.05;
+        galleryGroup.userData.particles.rotation.y = time * 0.05;
     }
 
-    // No animation needed - glow is baked into the canvas texture
+    // Floating drift per card + face the camera
+    galleryItems.forEach(item => {
+        if (item.userData.transitioning) {
+            item.lookAt(camera.position);
+            return;
+        }
+
+        const isCollected = !!state.collectedProjects[item.userData.project.id];
+        if (item.userData.isCollected !== isCollected) {
+            item.userData.isCollected = isCollected;
+            item.userData.card.material.color.setHex(isCollected ? 0x0c2a30 : 0x0a1a1e);
+            item.userData.border.material.color.setHex(isCollected ? 0x8fffe6 : 0x408F98);
+            item.userData.border.material.opacity = isCollected ? 1 : 0.7;
+            if (item.userData.maskPlane) item.userData.maskPlane.visible = !isCollected;
+            if (item.userData.cardSize) {
+                setGlowPlane(item, item.userData.cardSize.width, item.userData.cardSize.height, isCollected);
+            }
+        }
+
+        const base = item.userData.basePosition;
+        const seed = item.userData.floatSeed;
+        item.position.x = base.x + Math.sin(time * 0.6 + seed) * 0.12;
+        item.position.y = base.y + Math.cos(time * 0.7 + seed) * 0.16;
+        item.position.z = base.z + Math.sin(time * 0.5 + seed) * 0.08;
+        item.lookAt(camera.position);
+
+        if (item.userData.glowPlane && isCollected) {
+            const pulse = 0.6 + Math.sin(time * 2 + seed) * 0.4;
+            item.userData.glowPlane.material.opacity = Math.min(1, Math.max(0, pulse));
+        }
+    });
 
     // Hover detection with raycaster
     state.raycaster.setFromCamera(state.mouse, camera);
@@ -2246,6 +2466,7 @@ function update3DGallery(time, deltaTime) {
 
 function onGalleryClick() {
     if (state.view !== 'gallery') return;
+    if (galleryTransition && galleryTransition.active) return;
 
     state.raycaster.setFromCamera(state.mouse, camera);
     const intersects = state.raycaster.intersectObjects(galleryItems, true);
@@ -2256,9 +2477,79 @@ function onGalleryClick() {
             hitItem = hitItem.parent;
         }
         if (hitItem.userData.project) {
-            showProjectDetail(hitItem.userData.project);
+            animateGalleryItemToDetail(hitItem);
         }
     }
+}
+
+function animateGalleryItemToDetail(item) {
+    if (!item || (galleryTransition && galleryTransition.active)) return;
+
+    const size = item.userData.cardSize || { width: GALLERY_CARD_BASE_WIDTH, height: GALLERY_CARD_BASE_HEIGHT };
+    const forward = new THREE.Vector3();
+    camera.getWorldDirection(forward);
+
+    const targetDistance = 4.6;
+    const targetPos = camera.position.clone().add(forward.multiplyScalar(targetDistance));
+    const visibleHeight = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * targetDistance;
+    const visibleWidth = visibleHeight * camera.aspect;
+    const targetScale = Math.max(visibleWidth / size.width, visibleHeight / size.height) * 1.03;
+
+    galleryTransition = {
+        active: true,
+        item,
+        fromPosition: item.position.clone(),
+        fromScale: item.scale.clone()
+    };
+
+    item.userData.transitioning = true;
+
+    gsap.to(item.position, {
+        x: targetPos.x,
+        y: targetPos.y,
+        z: targetPos.z,
+        duration: 0.9,
+        ease: "power3.inOut"
+    });
+
+    gsap.to(item.scale, {
+        x: targetScale,
+        y: targetScale,
+        z: targetScale,
+        duration: 0.9,
+        ease: "power3.inOut",
+        onComplete: () => {
+            item.userData.transitioning = false;
+            showProjectDetail(item.userData.project);
+        }
+    });
+}
+
+function animateGalleryItemBack() {
+    if (!galleryTransition || !galleryTransition.item) return;
+    const item = galleryTransition.item;
+
+    item.userData.transitioning = true;
+
+    gsap.to(item.position, {
+        x: galleryTransition.fromPosition.x,
+        y: galleryTransition.fromPosition.y,
+        z: galleryTransition.fromPosition.z,
+        duration: 0.9,
+        ease: "power3.inOut"
+    });
+
+    gsap.to(item.scale, {
+        x: galleryTransition.fromScale.x,
+        y: galleryTransition.fromScale.y,
+        z: galleryTransition.fromScale.z,
+        duration: 0.9,
+        ease: "power3.inOut",
+        onComplete: () => {
+            item.userData.transitioning = false;
+            galleryTransition.active = false;
+        }
+    });
 }
 
 // --- Gallery Logic (Legacy - kept for compatibility) ---
@@ -2408,20 +2699,27 @@ function animate() {
     if (particles && particles.visible) {
         const positions = particles.geometry.attributes.position.array;
         const vels = particles.userData.velocities;
+        const now = performance.now();
+        const delta = particles.userData.lastTime ? Math.min((now - particles.userData.lastTime) / 1000, 0.05) : 0.016;
+        particles.userData.lastTime = now;
+        particles.userData.age = (particles.userData.age || 0) + delta;
 
         for (let i = 0; i < vels.length; i++) {
-            positions[i * 3] += vels[i].x;
-            positions[i * 3 + 1] += vels[i].y;
-            positions[i * 3 + 2] += vels[i].z;
+            positions[i * 3] += vels[i].x * delta;
+            positions[i * 3 + 1] += vels[i].y * delta;
+            positions[i * 3 + 2] += vels[i].z * delta;
 
             // Drag
-            vels[i].x *= 0.98;
-            vels[i].y *= 0.98;
-            vels[i].z *= 0.98;
+            const drag = Math.pow(0.3, delta);
+            vels[i].x *= drag;
+            vels[i].y *= drag;
+            vels[i].z *= drag;
         }
         particles.geometry.attributes.position.needsUpdate = true;
-        particles.material.opacity -= 0.01;
-        if (particles.material.opacity <= 0) {
+        const lifespan = particles.userData.lifespan || 2.8;
+        const fade = Math.min(particles.userData.age / lifespan, 1);
+        particles.material.opacity = 1 - fade;
+        if (particles.material.opacity <= 0.02) {
             scene.remove(particles);
             particles = null;
         }
