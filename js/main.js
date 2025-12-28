@@ -11,6 +11,7 @@ const FONT_FAMILY = '"Azeret Mono", monospace';
 const WORLD_SIZE = 25;
 const MATCH_THRESHOLD = 3; // Number of keywords needed to unlock a project
 const FIND_SENTENCE = 'Is this yourself in your mind?';
+const DEBUG_FORCE_FINALE = false; // Set true to auto-run the finale for debugging
 
 // --- Projects Data ---
 // Projects are now loaded from individual project.json files in each project folder
@@ -83,7 +84,7 @@ let KEYWORDS = [];
 // --- State ---
 const state = {
     view: 'field', // field, gallery, about, projectDetail
-    fieldPhase: 'landing', // landing, shattering, active, unlocking, projectReveal
+    fieldPhase: 'landing', // landing, shattering, active, unlocking, projectReveal, ending
     mouse: new THREE.Vector2(),
     targetMouse: new THREE.Vector2(),
     raycaster: new THREE.Raycaster(),
@@ -98,6 +99,7 @@ const state = {
     collectedProjects: loadCollectedProjects(), // {projectId: {project, usedKeywords: []}}
     currentUnlockingProject: null, // Project being unlocked
     currentProjectDetail: null, // Project being viewed in detail
+    finaleTriggered: false, // Only run finale once until reset
     findYourself: {
         active: false,
         words: [],
@@ -108,6 +110,18 @@ const state = {
         pendingWords: [],
         sequenceActive: false
     }
+};
+
+// Finale Sequence State
+const finaleState = {
+    active: false,
+    spinning: false,
+    spinAngle: 0,
+    spinSpeed: 0,
+    wordTimeline: null,
+    overlay: null,
+    particleSystem: null,
+    messageOverlay: null
 };
 
 // Load collected projects from localStorage
@@ -134,6 +148,7 @@ function resetCollectedProjects() {
     state.collectedProjects = {};
     state.collectedKeywords = [];
     state.collectedWords = [];
+    state.finaleTriggered = false;
     resetFindYourselfState();
 
     // Clear localStorage
@@ -1116,6 +1131,531 @@ function finishFindYourselfSequence(matchedMeshes) {
     updateVisibility();
 }
 
+// --- Finale Sequence (Galaxy ending) ---
+
+function startFinaleSequence(triggerSource = 'manual') {
+    if (finaleState.active) return;
+    finaleState.active = true;
+    state.view = 'field';
+    state.fieldPhase = 'ending';
+    clearHintLines();
+    if (keywordGroup) keywordGroup.visible = true;
+
+    prepareFinaleOrbits();
+    startFinaleSpin().then(() => {
+        gsap.delayedCall(3, () => startFinaleExplosionStage()); // 停下来后额外等待 3 秒
+    });
+}
+
+function prepareFinaleOrbits() {
+    const center = new THREE.Vector3(0, 0, 0);
+    keywordGroup.children.forEach(mesh => {
+        const offset = mesh.position.clone().sub(center);
+        const radius = Math.max(4, offset.length());
+        const angle = Math.atan2(offset.z, offset.x);
+        const tilt = Math.atan2(offset.y, Math.max(0.001, Math.sqrt(offset.x * offset.x + offset.z * offset.z)));
+        mesh.userData.finaleOrbit = {
+            radius,
+            baseAngle: angle,
+            tilt,
+            speed: 0.6 + Math.random() * 0.7,
+            wobble: Math.random() * Math.PI * 2
+        };
+        gsap.to(mesh.material, { opacity: 0.9, duration: 1.2 });
+    });
+}
+
+function startFinaleSpin() {
+    finaleState.spinning = true;
+    finaleState.spinAngle = 0;
+    finaleState.spinSpeed = 0.2;
+
+    return new Promise(resolve => {
+        const tl = gsap.timeline({
+            onComplete: () => {
+                finaleState.spinning = false;
+                resolve();
+            }
+        });
+
+        tl.to(finaleState, { spinSpeed: 1.4, duration: 2.2, ease: "power2.inOut" })
+            .to(finaleState, { spinSpeed: 4.5, duration: 3.4, ease: "power3.in" })
+            .to(finaleState, { spinSpeed: 10.5, duration: 2.6, ease: "power3.in" })
+            .to(finaleState, { spinSpeed: 0.08, duration: 1.8, ease: "expo.out" });
+    });
+}
+
+function updateFinaleSpin(deltaTime) {
+    if (!finaleState.active) return;
+    finaleState.spinAngle += finaleState.spinSpeed * deltaTime;
+
+    keywordGroup.children.forEach(mesh => {
+        if (mesh.userData.selected) return;
+        if (!mesh.userData.finaleOrbit) return;
+
+        const orbit = mesh.userData.finaleOrbit;
+        const angle = orbit.baseAngle + finaleState.spinAngle * orbit.speed;
+        const radius = orbit.radius;
+        const wobbleY = Math.sin(angle * 0.35 + orbit.wobble) * (radius * 0.12);
+
+        mesh.quaternion.copy(camera.quaternion);
+        mesh.position.x = Math.cos(angle) * radius;
+        mesh.position.z = Math.sin(angle) * radius;
+        mesh.position.y = wobbleY;
+    });
+}
+
+function startFinaleExplosionStage() {
+    const allMeshes = keywordGroup.children.slice();
+    // 隐藏所有词（爆炸后应消失）
+    allMeshes.forEach(mesh => {
+        mesh.visible = false;
+        gsap.set(mesh.material, { opacity: 0 });
+    });
+
+    // 构造词标题（先透明，用 Doto）
+    const overlay = createFinaleWordOverlay('WHERE');
+    // 取部分关键词位置作为爆炸源
+    const origins = allMeshes.slice(0, 30).map(m => m.position.clone());
+    createFinaleBurstAndGather(origins.length ? origins : [new THREE.Vector3(0, 0, 0)], overlay, () => {
+        startFinaleWordCycle(overlay);
+    });
+}
+
+function createFinaleWordOverlay(text) {
+    const overlay = document.createElement('div');
+    overlay.className = 'sentence-overlay finale-overlay';
+    overlay.style.opacity = '0';
+    overlay.innerHTML = `<p class="full-sentence finale-word">${text}</p>`;
+    document.body.appendChild(overlay);
+    return overlay;
+}
+
+function createFinaleBurstAndGather(origins, overlay, onDone) {
+    const particleCount = 3600;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const velocities = [];
+
+    for (let i = 0; i < particleCount; i++) {
+        const origin = origins[i % origins.length];
+        positions[i * 3] = origin.x + (Math.random() - 0.5) * 0.8;
+        positions[i * 3 + 1] = origin.y + (Math.random() - 0.5) * 0.8;
+        positions[i * 3 + 2] = origin.z + (Math.random() - 0.5) * 0.8;
+
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(Math.random() * 2 - 1);
+        const speed = 6 + Math.random() * 10;
+        const dir = new THREE.Vector3(
+            Math.sin(phi) * Math.cos(theta),
+            Math.sin(phi) * Math.sin(theta),
+            Math.cos(phi)
+        );
+        velocities.push({ x: dir.x * speed, y: dir.y * speed, z: dir.z * speed });
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const material = new THREE.PointsMaterial({
+        color: 0xe3e4ff,
+        size: 0.06,
+        transparent: true,
+        opacity: 1,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+    });
+
+    const system = new THREE.Points(geometry, material);
+    scene.add(system);
+
+    const gatherStart = 1.0; // 爆炸 1 秒后开始汇聚
+    const gatherDuration = 5.0;
+    const center = new THREE.Vector3(0, 0, -2);
+    const gatherPlan = Array.from({ length: particleCount }, () => gatherStart + Math.random() * gatherDuration);
+    const driftDrag = 0.92; // 衰减慢一点
+    const startTime = performance.now();
+    let last = startTime;
+
+    // 字幕淡入（延迟到汇聚后段再出现）
+    if (overlay) {
+        const fadeDelay = gatherDuration * 1; // 在汇聚后段再显现
+        const fadeDur = gatherDuration - fadeDelay;
+        gsap.to(overlay, { opacity: 1, duration: Math.max(0.8, fadeDur), delay: fadeDelay, ease: "power2.out" });
+        const textEl = overlay.querySelector('.full-sentence');
+        if (textEl) {
+            textEl.style.fontFamily = "'Doto', sans-serif";
+            textEl.style.letterSpacing = '0.2em';
+            textEl.style.fontWeight = '400';
+            textEl.style.fontSize = '5.2rem';
+        }
+    }
+
+    function tick() {
+        const now = performance.now();
+        const elapsed = (now - startTime) / 1000;
+        const delta = Math.min((now - last) / 1000, 0.05);
+        last = now;
+
+        const pos = system.geometry.attributes.position.array;
+        for (let i = 0; i < particleCount; i++) {
+            const v = velocities[i];
+
+            if (elapsed < gatherStart) {
+                // 爆炸阶段
+                const drag = Math.pow(driftDrag, delta);
+                v.x *= drag;
+                v.y *= drag;
+                v.z *= drag;
+                pos[i * 3] += v.x * delta * 6.5;
+                pos[i * 3 + 1] += v.y * delta * 6.5;
+                pos[i * 3 + 2] += v.z * delta * 6.5;
+            } else {
+                // 汇聚阶段：按时间片分批启动
+                const startT = gatherPlan[i];
+                if (elapsed >= startT) {
+                    // 缓慢非线性靠近中心
+                    const lerp = 1 - Math.exp(-2 * delta);
+                    pos[i * 3] += (center.x - pos[i * 3]) * lerp;
+                    pos[i * 3 + 1] += (center.y - pos[i * 3 + 1]) * lerp;
+                    pos[i * 3 + 2] += (center.z - pos[i * 3 + 2]) * lerp;
+                } else {
+                    // 继续漂浮
+                    const drag = Math.pow(driftDrag, delta);
+                    v.x *= drag;
+                    v.y *= drag;
+                    v.z *= drag;
+                    pos[i * 3] += v.x * delta * 3.2;
+                    pos[i * 3 + 1] += v.y * delta * 3.2;
+                    pos[i * 3 + 2] += v.z * delta * 3.2;
+                }
+            }
+        }
+
+        system.geometry.attributes.position.needsUpdate = true;
+
+        // 汇聚期整体渐隐
+        if (elapsed >= gatherStart) {
+            const fadeProgress = Math.min((elapsed - gatherStart) / gatherDuration, 1);
+            material.opacity = 1 - fadeProgress;
+        }
+
+        if (material.opacity > 0.02) {
+            requestAnimationFrame(tick);
+        } else {
+            scene.remove(system);
+            if (onDone) onDone();
+        }
+    }
+
+    tick();
+}
+
+function startFinaleWordCycle(sentenceOverlay) {
+    const textEl = sentenceOverlay.querySelector('.full-sentence');
+    if (!textEl) return;
+
+    textEl.classList.add('finale-word');
+    const words = [
+        'WHERE','DO','WE','GO','NEXT','FIND','SELF','FREE','LIFE','EXIST','TIME','ICE','HOW','BECOME','ESCAPE','STAY','MOVE','DRIFT','WANDER','SEARCH','FORGET','REMEMBER','RETURN','ARRIVE','INSIDE','OUTSIDE','BETWEEN','EDGE','BORDER','SHELL','CORE','SKIN','MASK','NAME','VOICE','SHAPE','NOW','THEN','STILL','AGAIN','ALREADY','YET','SOON','LATE','PAUSE','LOOP','TRACE','FADING','HERE','THERE','NOWHERE','ANYWHERE','ROOM','FIELD','VOID','PATH','ROAD','SHELTER','ORIGIN','QUIET','HOME','NEVER','DEFINE','END','YOU'
+    ];
+    const forward = new THREE.Vector3();
+    camera.getWorldDirection(forward);
+    const zoomTarget = camera.position.clone().add(forward.multiplyScalar(3.5));
+
+    const timeline = gsap.timeline({
+        onComplete: () => {
+            gsap.delayedCall(5, () => explodeFinaleYou(sentenceOverlay));
+        }
+    });
+
+    const maxDur = 0.7; // edges slower
+    const minDur = 0.08; // middle faster
+
+    words.forEach((word, index) => {
+        const t = words.length > 1 ? index / (words.length - 1) : 0;
+        const shape = Math.sin(Math.PI * t); // 0 at edges, 1 in middle
+        const dur = minDur + (1 - shape) * (maxDur - minDur); // slow -> fast -> slow
+        const fadeOut = dur * 0.45;
+        const fadeIn = dur * 0.45;
+        const gap = dur * 0.25;
+
+        timeline.to(textEl, {
+            opacity: 0.2,
+            duration: Math.max(0.05, fadeOut),
+            ease: "power1.in"
+        });
+        timeline.add(() => { textEl.textContent = word; });
+        timeline.to(textEl, {
+            opacity: 1,
+            duration: Math.max(0.06, fadeIn),
+            ease: "power1.out"
+        });
+        if (index < words.length - 1) {
+            timeline.to({}, { duration: Math.max(0.04, gap) });
+        }
+    });
+
+    gsap.to(camera.position, {
+        x: zoomTarget.x,
+        y: zoomTarget.y,
+        z: zoomTarget.z,
+        duration: timeline.duration() + 2,
+        ease: "power3.inOut",
+        onUpdate: () => camera.lookAt(0, 0, 0)
+    });
+
+    finaleState.wordTimeline = timeline;
+}
+
+function explodeFinaleYou(sentenceOverlay) {
+    const textEl = sentenceOverlay.querySelector('.full-sentence');
+    if (!textEl) return;
+
+    const spans = wrapTextInSpans(textEl);
+    const frozenCamera = camera.clone();
+    frozenCamera.position.copy(camera.position);
+    frozenCamera.quaternion.copy(camera.quaternion);
+    frozenCamera.updateProjectionMatrix();
+    frozenCamera.updateMatrixWorld();
+
+    const planeNormal = new THREE.Vector3(0, 0, -1).applyQuaternion(frozenCamera.quaternion).normalize();
+    const planePoint = frozenCamera.position.clone().add(planeNormal.clone().multiplyScalar(4.5));
+
+    const origins = spans.map(span => {
+        const rect = span.getBoundingClientRect();
+        const ndcX = (rect.left + rect.width / 2) / window.innerWidth * 2 - 1;
+        const ndcY = -((rect.top + rect.height / 2) / window.innerHeight) * 2 + 1;
+        const vector = new THREE.Vector3(ndcX, ndcY, 0.5);
+        vector.unproject(frozenCamera);
+        const dir = vector.sub(frozenCamera.position).normalize();
+        const denom = dir.dot(planeNormal);
+        if (Math.abs(denom) < 1e-4) return frozenCamera.position.clone();
+        const distanceToPlane = planePoint.clone().sub(frozenCamera.position).dot(planeNormal) / denom;
+        return frozenCamera.position.clone().add(dir.multiplyScalar(distanceToPlane));
+    });
+
+    createOverlayExplosion(origins, {
+        particleCount: 2600,
+        drag: 0.4,
+        slowdown: true,
+        lifespan: 7.5,
+        color: 0x8fffe6
+    });
+
+    if (finaleState.particleSystem) {
+        gsap.to(finaleState.particleSystem.material, {
+            opacity: 0,
+            duration: 1.2,
+            onComplete: () => {
+                scene.remove(finaleState.particleSystem);
+                finaleState.particleSystem = null;
+            }
+        });
+    }
+
+    gsap.to(sentenceOverlay, {
+        opacity: 0,
+        duration: 0.6,
+        onComplete: () => {
+            sentenceOverlay.remove();
+            gsap.delayedCall(5.2, () => showFinaleMessage());
+        }
+    });
+}
+
+function createOverlayExplosion(origins, opts = {}) {
+    const particleCount = opts.particleCount || 2000;
+    const dragBase = opts.drag !== undefined ? opts.drag : 0.25;
+    const lifespan = opts.lifespan || 4.2;
+    const color = opts.color || 0xe3e4ff;
+    const slowdown = opts.slowdown || false;
+    const speedMin = opts.speedMin || 10;
+    const speedMax = opts.speedMax || 18;
+
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const velocities = [];
+
+    for (let i = 0; i < particleCount; i++) {
+        const origin = origins[i % origins.length] || new THREE.Vector3();
+        positions[i * 3] = origin.x + (Math.random() - 0.5) * 0.4;
+        positions[i * 3 + 1] = origin.y + (Math.random() - 0.5) * 0.4;
+        positions[i * 3 + 2] = origin.z + (Math.random() - 0.5) * 0.4;
+
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(Math.random() * 2 - 1);
+        const speed = speedMin + Math.random() * (speedMax - speedMin);
+        const dir = new THREE.Vector3(
+            Math.sin(phi) * Math.cos(theta),
+            Math.sin(phi) * Math.sin(theta),
+            Math.cos(phi)
+        );
+
+        velocities.push({
+            x: dir.x * speed,
+            y: dir.y * speed,
+            z: dir.z * speed
+        });
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const material = new THREE.PointsMaterial({
+        color,
+        size: 0.06,
+        transparent: true,
+        opacity: 1,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+    });
+
+    const system = new THREE.Points(geometry, material);
+    system.userData = { velocities, age: 0, last: performance.now() };
+    scene.add(system);
+
+    function tick() {
+        const now = performance.now();
+        const delta = Math.min((now - system.userData.last) / 1000, 0.05);
+        system.userData.last = now;
+        system.userData.age += delta;
+
+        const pos = system.geometry.attributes.position.array;
+        for (let i = 0; i < velocities.length; i++) {
+            const v = velocities[i];
+            let drag = Math.pow(dragBase, delta);
+            if (slowdown && system.userData.age > 0.6) {
+                drag = Math.pow(dragBase * 0.05, delta);
+            }
+            v.x *= drag;
+            v.y *= drag;
+            v.z *= drag;
+
+            pos[i * 3] += v.x * delta * 6.5;
+            pos[i * 3 + 1] += v.y * delta * 6.5;
+            pos[i * 3 + 2] += v.z * delta * 6.5;
+        }
+        system.geometry.attributes.position.needsUpdate = true;
+
+        const fade = Math.min(system.userData.age / lifespan, 1);
+        system.material.opacity = 1 - fade;
+
+        if (system.material.opacity > 0.02) {
+            requestAnimationFrame(tick);
+        } else {
+            scene.remove(system);
+        }
+    }
+
+    tick();
+}
+
+function wrapTextInSpans(element) {
+    const text = element.textContent || '';
+    element.innerHTML = text.split('').map(char => {
+        if (char === ' ') return `<span class="landing-char space">&nbsp;</span>`;
+        return `<span class="landing-char">${char}</span>`;
+    }).join('');
+    return Array.from(element.querySelectorAll('span'));
+}
+
+function showFinaleMessage() {
+    const overlay = document.createElement('div');
+    overlay.id = 'finale-message';
+    overlay.className = 'sentence-overlay finale-overlay';
+    overlay.innerHTML = `
+        <div class="finale-lines">
+            <p class="finale-line" data-line="1">Thank you for finding me.</p>
+            <p class="finale-line second" data-line="2">Your turn to find yourself.</p>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    finaleState.messageOverlay = overlay;
+
+    const lines = Array.from(overlay.querySelectorAll('.finale-line'));
+    lines.forEach(line => wrapTextInSpans(line));
+
+    gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 0.8 });
+
+    const first = overlay.querySelector('.finale-line[data-line="1"]');
+    const second = overlay.querySelector('.finale-line[data-line="2"]');
+
+    if (first) {
+        gsap.fromTo(first, { y: 20, opacity: 0 }, {
+            y: 0,
+            opacity: 1,
+            duration: 1.1,
+            delay: 0.4,
+            ease: "power2.out"
+        });
+    }
+
+    if (second) {
+        gsap.fromTo(second, { y: 20, opacity: 0 }, {
+            y: 0,
+            opacity: 1,
+            duration: 1.1,
+            delay: 5.4,
+            ease: "power2.out"
+        });
+    }
+
+    const scatterDelay = 5.4 + 10 + 0.5; // after second line shows, keep for ~10s
+    gsap.delayedCall(scatterDelay, () => {
+        scatterSentenceToField(overlay, () => {
+            restoreFieldAfterFinale();
+        });
+    });
+}
+
+function restoreFieldAfterFinale() {
+    finaleState.active = false;
+    finaleState.spinning = false;
+
+    if (finaleState.wordTimeline) {
+        finaleState.wordTimeline.kill();
+        finaleState.wordTimeline = null;
+    }
+
+    if (finaleState.overlay && finaleState.overlay.parentNode) {
+        finaleState.overlay.remove();
+    }
+    if (finaleState.messageOverlay && finaleState.messageOverlay.parentNode) {
+        finaleState.messageOverlay.remove();
+    }
+
+    keywordGroup.children.forEach(mesh => {
+        mesh.userData.selected = false;
+        mesh.userData.hinted = false;
+        mesh.userData.finaleOrbit = null;
+        mesh.visible = true;
+        mesh.material.color.setHex(0xffffff);
+        gsap.to(mesh.material, { opacity: 0.6, duration: 1.2 });
+        if (mesh.userData.originalPos) {
+            mesh.position.copy(mesh.userData.originalPos);
+        }
+    });
+
+    gsap.to(camera.position, { x: 0, y: 0, z: 5, duration: 1.2, ease: "power2.out" });
+    gsap.to(camera.rotation, { x: 0, y: 0, z: 0, duration: 1.2, ease: "power2.out" });
+
+    state.fieldPhase = 'active';
+    updateVisibility();
+    if (viewName === 'field') {
+        maybeTriggerFinale();
+    }
+}
+
+// Finale trigger helper
+function hasCollectedAllProjects() {
+    return PROJECTS_DATA.length > 0 && Object.keys(state.collectedProjects).length >= PROJECTS_DATA.length;
+}
+
+function maybeTriggerFinale() {
+    if (state.finaleTriggered || finaleState.active) return;
+    if (state.view !== 'field') return;
+    if (!hasCollectedAllProjects()) return;
+    state.finaleTriggered = true;
+    startFinaleSequence('auto');
+}
+
 // --- Project Matching System ---
 
 function checkProjectMatch() {
@@ -1219,6 +1759,16 @@ function explodeKeywordsToSentence(project, matchedMeshes, blurOverlay, options 
     const sentenceText = options.sentenceText || project.fullSentence;
     const removeMeshes = options.removeMeshes !== false;
     const enableBlur = options.enableBlur !== false;
+    const particleCount = options.particleCount || 1500;
+    const explosionDrag = options.explosionDrag !== undefined ? options.explosionDrag : 0.15;
+    const scatterSpeed = options.scatterSpeed !== undefined ? options.scatterSpeed : 1.7;
+    const fadeStart = options.fadeStart !== undefined ? options.fadeStart : 10.5;
+    const fadeDuration = options.fadeDuration !== undefined ? options.fadeDuration : 4.0;
+    const onTextShown = options.onTextShown;
+    const completeAfter = options.completeAfter !== undefined ? options.completeAfter : 12.0;
+    const speedMin = options.speedMin !== undefined ? options.speedMin : 5;
+    const speedMax = options.speedMax !== undefined ? options.speedMax : 10;
+    const approachSpeed = options.approachSpeed !== undefined ? options.approachSpeed : 7.4;
     const onComplete = options.onComplete || ((sentenceOverlay, activeBlur) => {
         transformSentenceToTitle(project, sentenceOverlay, activeBlur);
     });
@@ -1303,7 +1853,6 @@ function explodeKeywordsToSentence(project, matchedMeshes, blurOverlay, options 
         });
 
         // Create particles
-        const particleCount = 1500; // Lots of particles
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
         const colors = new Float32Array(particleCount * 3);
@@ -1359,7 +1908,7 @@ function explodeKeywordsToSentence(project, matchedMeshes, blurOverlay, options 
             // Random explosion direction
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.acos(Math.random() * 2 - 1);
-            const speed = 5 + Math.random() * 10;
+            const speed = speedMin + Math.random() * (speedMax - speedMin);
 
             particleData.push({
                 vx: speed * Math.sin(phi) * Math.cos(theta),
@@ -1389,14 +1938,14 @@ function explodeKeywordsToSentence(project, matchedMeshes, blurOverlay, options 
                 for (let i = 0; i < particleCount; i++) {
                     const data = particleData[i];
                     // Drag effect (time-based)
-                    const drag = Math.pow(0.15, delta);
+                    const drag = Math.pow(explosionDrag, delta);
                     data.vx *= drag;
                     data.vy *= drag;
                     data.vz *= drag;
 
-                    data.x += data.vx * delta * 7.4;
-                    data.y += data.vy * delta * 7.4;
-                    data.z += data.vz * delta * 7.4;
+                    data.x += data.vx * delta * approachSpeed;
+                    data.y += data.vy * delta * approachSpeed;
+                    data.z += data.vz * delta * approachSpeed;
 
                     positions[i * 3] = data.x;
                     positions[i * 3 + 1] = data.y;
@@ -1458,7 +2007,6 @@ function explodeKeywordsToSentence(project, matchedMeshes, blurOverlay, options 
                 }
             } else {
                 // Phase 3: Drift (Keep particles visible while reading)
-                const scatterSpeed = 1.7;
                 for (let i = 0; i < particleCount; i++) {
                     const data = particleData[i];
 
@@ -1483,6 +2031,10 @@ function explodeKeywordsToSentence(project, matchedMeshes, blurOverlay, options 
                         delay: i * 0.02
                     });
                 });
+
+                if (onTextShown) {
+                    onTextShown(sentenceOverlay, blurOverlay, particleSystem);
+                }
             }
 
             // At 5 seconds (text fully visible), slowly fade in blur
@@ -1506,8 +2058,6 @@ function explodeKeywordsToSentence(project, matchedMeshes, blurOverlay, options 
                 });
             }
 
-            const fadeStart = 10.5;
-            const fadeDuration = 4.0;
             if (elapsed > fadeStart) {
                 const fadeProgress = Math.min((elapsed - fadeStart) / fadeDuration, 1);
                 particleSystem.material.opacity = 1 - fadeProgress;
@@ -1521,7 +2071,7 @@ function explodeKeywordsToSentence(project, matchedMeshes, blurOverlay, options 
             }
 
             // Trigger next step at 12 seconds (text at 4s + blur at 5s + 5s reading time)
-            if (elapsed > 12.0 && !particleSystem.userData.triggered) {
+            if (elapsed > completeAfter && !particleSystem.userData.triggered) {
                 particleSystem.userData.triggered = true;
 
                 // Proceed to next phase (blur already at full opacity)
@@ -2087,6 +2637,7 @@ function returnToField({ resetSelection = false } = {}) {
     }
 
     updateVisibility();
+    maybeTriggerFinale();
 }
 
 function clearCollectedKeywords() {
@@ -2268,7 +2819,7 @@ function updateVisibility() {
 
     // 2. Handle 3D Keywords Visibility
     // Keywords should only be visible if we are in Field View AND Field Phase is active (or unlocking)
-    const showKeywords = (state.view === 'field' && (state.fieldPhase === 'active' || state.fieldPhase === 'unlocking'));
+    const showKeywords = (state.view === 'field' && (state.fieldPhase === 'active' || state.fieldPhase === 'unlocking' || state.fieldPhase === 'ending'));
 
     if (keywordGroup) {
         keywordGroup.visible = showKeywords;
@@ -3224,73 +3775,77 @@ function animate() {
     // Update Keywords (Field Phase)
     // Only update if visible
     if (keywordGroup && keywordGroup.visible) {
-        // Get camera's forward direction for proper Z wrapping
-        const cameraDirection = new THREE.Vector3();
-        camera.getWorldDirection(cameraDirection);
+        if (finaleState.active) {
+            updateFinaleSpin(deltaTime);
+        } else {
+            // Get camera's forward direction for proper Z wrapping
+            const cameraDirection = new THREE.Vector3();
+            camera.getWorldDirection(cameraDirection);
 
-        // Pre-calculate camera axes (do this once, not per mesh)
-        const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-        const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
-        const camForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+            // Pre-calculate camera axes (do this once, not per mesh)
+            const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+            const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+            const camForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
 
-        keywordGroup.children.forEach(mesh => {
-            // BILLBOARD EFFECT: Make meshes face the camera (even selected ones)
-            mesh.quaternion.copy(camera.quaternion);
+            keywordGroup.children.forEach(mesh => {
+                // BILLBOARD EFFECT: Make meshes face the camera (even selected ones)
+                mesh.quaternion.copy(camera.quaternion);
 
-            // Skip selected keywords for movement/wrapping (they're fixed at bottom)
-            if (mesh.userData.selected || mesh.userData.fixed) return;
+                // Skip selected keywords for movement/wrapping (they're fixed at bottom)
+                if (mesh.userData.selected || mesh.userData.fixed) return;
 
-            // Gentle float
-            mesh.position.y += Math.sin(time + mesh.position.x) * 0.002;
+                // Gentle float
+                mesh.position.y += Math.sin(time + mesh.position.x) * 0.002;
 
-            // INFINITE LOOP: Wrap keywords around in all directions
-            // Calculate position relative to camera in WORLD space
-            const toMesh = mesh.position.clone().sub(camera.position);
-            const distance = toMesh.length();
+                // INFINITE LOOP: Wrap keywords around in all directions
+                // Calculate position relative to camera in WORLD space
+                const toMesh = mesh.position.clone().sub(camera.position);
+                const distance = toMesh.length();
 
-            // DISTANCE-BASED OPACITY: Fade out far keywords
-            let targetOpacity = 0.6;
+                // DISTANCE-BASED OPACITY: Fade out far keywords
+                let targetOpacity = 0.6;
 
-            if (distance > 10 && distance <= 20) {
-                const t = (distance - 10) / 10;
-                targetOpacity = 0.6 - t * 0.35;
-            } else if (distance > 20 && distance <= WORLD_SIZE) {
-                const t = (distance - 20) / (WORLD_SIZE - 20);
-                targetOpacity = 0.25 - t * 0.17;
-            } else if (distance > WORLD_SIZE) {
-                const t = Math.min(1, (distance - WORLD_SIZE) / 5);
-                targetOpacity = 0.08 * (1 - t);
-            }
+                if (distance > 10 && distance <= 20) {
+                    const t = (distance - 10) / 10;
+                    targetOpacity = 0.6 - t * 0.35;
+                } else if (distance > 20 && distance <= WORLD_SIZE) {
+                    const t = (distance - 20) / (WORLD_SIZE - 20);
+                    targetOpacity = 0.25 - t * 0.17;
+                } else if (distance > WORLD_SIZE) {
+                    const t = Math.min(1, (distance - WORLD_SIZE) / 5);
+                    targetOpacity = 0.08 * (1 - t);
+                }
 
-            // Smoothly interpolate opacity
-            mesh.material.opacity += (targetOpacity - mesh.material.opacity) * 0.1;
+                // Smoothly interpolate opacity
+                mesh.material.opacity += (targetOpacity - mesh.material.opacity) * 0.1;
 
-            // Get distances along each camera axis
-            const distRight = toMesh.dot(camRight);
-            const distUp = toMesh.dot(camUp);
-            const distForward = toMesh.dot(camForward);
+                // Get distances along each camera axis
+                const distRight = toMesh.dot(camRight);
+                const distUp = toMesh.dot(camUp);
+                const distForward = toMesh.dot(camForward);
 
-            // Wrap along camera's RIGHT axis (left-right)
-            if (distRight > WORLD_SIZE) {
-                mesh.position.sub(camRight.clone().multiplyScalar(WORLD_SIZE * 2));
-            } else if (distRight < -WORLD_SIZE) {
-                mesh.position.add(camRight.clone().multiplyScalar(WORLD_SIZE * 2));
-            }
+                // Wrap along camera's RIGHT axis (left-right)
+                if (distRight > WORLD_SIZE) {
+                    mesh.position.sub(camRight.clone().multiplyScalar(WORLD_SIZE * 2));
+                } else if (distRight < -WORLD_SIZE) {
+                    mesh.position.add(camRight.clone().multiplyScalar(WORLD_SIZE * 2));
+                }
 
-            // Wrap along camera's UP axis (up-down)
-            if (distUp > WORLD_SIZE) {
-                mesh.position.sub(camUp.clone().multiplyScalar(WORLD_SIZE * 2));
-            } else if (distUp < -WORLD_SIZE) {
-                mesh.position.add(camUp.clone().multiplyScalar(WORLD_SIZE * 2));
-            }
+                // Wrap along camera's UP axis (up-down)
+                if (distUp > WORLD_SIZE) {
+                    mesh.position.sub(camUp.clone().multiplyScalar(WORLD_SIZE * 2));
+                } else if (distUp < -WORLD_SIZE) {
+                    mesh.position.add(camUp.clone().multiplyScalar(WORLD_SIZE * 2));
+                }
 
-            // Wrap along camera's FORWARD axis (depth)
-            if (distForward > WORLD_SIZE) {
-                mesh.position.sub(camForward.clone().multiplyScalar(WORLD_SIZE * 2));
-            } else if (distForward < -WORLD_SIZE) {
-                mesh.position.add(camForward.clone().multiplyScalar(WORLD_SIZE * 2));
-            }
-        });
+                // Wrap along camera's FORWARD axis (depth)
+                if (distForward > WORLD_SIZE) {
+                    mesh.position.sub(camForward.clone().multiplyScalar(WORLD_SIZE * 2));
+                } else if (distForward < -WORLD_SIZE) {
+                    mesh.position.add(camForward.clone().multiplyScalar(WORLD_SIZE * 2));
+                }
+            });
+        }
     }
 
     // Update hint lines (lines to related keywords in 3D space)
@@ -3357,6 +3912,11 @@ if (leftoverNameReveal) leftoverNameReveal.remove();
 loadProjectsData().then(() => {
     // Start animation loop after projects are loaded
     animate();
+
+    // Debug: auto-run finale sequence for tuning
+    if (DEBUG_FORCE_FINALE) {
+        setTimeout(() => startFinaleSequence('debug'), 1200);
+    }
 }).catch(error => {
     console.error('Failed to load projects:', error);
     // Start anyway with empty projects

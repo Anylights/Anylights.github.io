@@ -870,6 +870,36 @@ body.menu-open #menu-close {
     -webkit-backdrop-filter: none;
 }
 
+.finale-overlay {
+    background: radial-gradient(ellipse at center, rgba(0, 40, 60, 0.5), rgba(0, 0, 0, 0.85));
+}
+
+.finale-word {
+    font-family: 'Doto', sans-serif;
+    font-size: 4.2rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    text-shadow: 0 0 30px rgba(143, 255, 230, 0.6);
+    font-weight: 400;
+}
+
+.finale-lines {
+    text-align: center;
+    color: #e3e4ff;
+    font-family: 'Azeret Mono', monospace;
+    font-size: 1.4rem;
+    line-height: 1.8;
+    letter-spacing: 0.06em;
+}
+
+.finale-line {
+    margin: 0.4rem 0;
+}
+
+.finale-line.second {
+    opacity: 0;
+}
+
 .full-sentence {
     font-family: 'Azeret Mono', monospace;
     font-size: 1.8rem;
