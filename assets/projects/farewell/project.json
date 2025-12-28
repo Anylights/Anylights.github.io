@@ -1,19 +1,19 @@
 {
     "id": "farewell",
     "name": "farewell",
-    "fullSentence": "Memory exists as particles suspended in time, each fragment carrying the texture and light of lived experience.",
+    "fullSentence": "Unchosen departures are ritual of becoming who you are.",
     "keywords": [
-        "PARTICLE",
-        "MEMORY",
-        "TIME",
-        "TEXTURE",
-        "LIGHT",
-        "FIELD",
+        "SCENE",
+        "WHO",
+        "DEPARTURES",
+        "CHOOSE",
+        "RITUAL",
         "EXPERIENCE"
     ],
-    "description": "A WebGL experience that visualizes personal memories as particle systems. Users can navigate through clouds of particles, each cluster representing a memory that reveals itself through interaction.",
-    "image": "assets/projects/particle-memory/cover.jpg",
-    "year": "2023",
+    "description": "A scene design, about 'Ritual' and 'Farewell'.",
+    "image": "assets/projects/farewell/cover.png",
+    "type": "Scene Design",
+    "year": "2025",
     "links": [],
-    "content": ""
+    "content": "<p>This is the ritual of a nomadic people living on the grassland.</p><p>When the young women of the tribe reached the age for marriage, they had to ride horses and leave the tribe where they had grown up to a new area, to start farming and establish themselves there. The woman was forbidden to see her parents again for the rest of her life.</p><p>This is a wedding, but it's also a funeral. The new bride and the departing daughter were both dissolved in the mother's tears.</p>"
 }

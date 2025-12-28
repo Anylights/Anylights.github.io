@@ -1197,6 +1197,13 @@ body.menu-open #menu-close {
     border-bottom: 2px solid rgba(64, 143, 152, 0.3);
 }
 
+.project-detail-meta {
+    display: flex;
+    gap: 1.2rem;
+    align-items: baseline;
+    flex-wrap: wrap;
+}
+
 .project-detail-title {
     font-family: 'Doto', sans-serif;
     font-size: 3rem;
@@ -1216,6 +1223,16 @@ body.menu-open #menu-close {
     color: rgba(64, 143, 152, 0.8);
     margin-top: 1rem;
     display: block;
+}
+
+.project-detail-type {
+    font-family: 'Azeret Mono', monospace;
+    font-size: 1rem;
+    color: rgba(227, 228, 255, 0.7);
+    margin-top: 1rem;
+    display: block;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
 }
 
 .project-detail-body {
@@ -1347,8 +1364,199 @@ body.menu-open #menu-close {
     box-shadow: 0 0 10px rgba(227, 228, 255, 0.2);
 }
 
-.about-content {
-    max-width: 800px;
+#about-view {
+    position: relative;
+    color: #e3e4ff;
+    background: rgba(0, 0, 0, 0.25);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    overflow: hidden;
+}
+
+#about-view::before,
+#about-view::after {
+    content: '';
+    position: absolute;
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+#about-view::before {
+    width: 520px;
+    height: 520px;
+    right: -180px;
+    top: 40px;
+    background: radial-gradient(circle, rgba(64, 143, 152, 0.35) 0%, rgba(64, 143, 152, 0) 70%);
+    filter: blur(12px);
+}
+
+#about-view::after {
+    width: 560px;
+    height: 560px;
+    left: -200px;
+    bottom: -160px;
+    background: radial-gradient(circle, rgba(227, 228, 255, 0.18) 0%, rgba(227, 228, 255, 0) 70%);
+    filter: blur(18px);
+}
+
+.about-shell {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: clamp(2.8rem, 5vw, 4.6rem);
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 3.2rem 0 4.6rem;
+}
+
+.about-avatar {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    border: 1px solid rgba(227, 228, 255, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Azeret Mono', monospace;
+    font-size: 0.85rem;
+    color: rgba(227, 228, 255, 0.7);
+    background: rgba(8, 10, 12, 0.55);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+}
+
+.about-avatar span {
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+}
+
+.about-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
+}
+
+.about-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.about-name {
+    font-family: 'Doto', sans-serif;
+    font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+    font-weight: 400;
+    margin: 0;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    text-shadow: 0 0 24px rgba(227, 228, 255, 0.35);
+}
+
+.about-subname {
+    margin: 0;
+    font-size: 1.05rem;
+    letter-spacing: 0.12em;
+    color: rgba(227, 228, 255, 0.6);
+}
+
+.about-quote {
+    margin: 0;
+    font-family: 'Azeret Mono', monospace;
+    font-size: clamp(0.9rem, 1.8vw, 1.05rem);
+    line-height: 1.8;
+    letter-spacing: 0.06em;
+    color: rgba(227, 228, 255, 0.85);
+}
+
+.about-text-block {
+    display: flex;
+    flex-direction: column;
+    gap: 1.4rem;
+}
+
+.about-roles {
+    margin: 0;
+    font-size: 0.95rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(227, 228, 255, 0.75);
+}
+
+.about-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+    font-size: 1rem;
+    line-height: 1.85;
+    color: rgba(227, 228, 255, 0.72);
+}
+
+.about-body p {
+    margin: 0;
+}
+
+.about-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.9rem;
+    padding-top: 0;
+}
+
+.social-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    padding: 0;
+    border: 1px solid rgba(227, 228, 255, 0.3);
+    text-decoration: none;
+    color: rgba(227, 228, 255, 0.85);
+    font-family: 'Azeret Mono', monospace;
+    background: rgba(0, 0, 0, 0.35);
+    transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.social-link:hover {
+    transform: translateY(-2px);
+    border-color: rgba(102, 204, 204, 0.7);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+}
+
+.social-link svg {
+    width: 28px;
+    height: 28px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0.9;
+}
+
+@media (max-width: 640px) {
+    .about-shell {
+        padding-top: 0.5rem;
+    }
+
+    .about-avatar {
+        width: 96px;
+        height: 96px;
+    }
+
+    .about-links {
+        gap: 0.6rem;
+    }
+
+    .social-link {
+        width: 56px;
+        height: 56px;
+    }
 }
 
 /* Mobile Responsive for Project Detail */

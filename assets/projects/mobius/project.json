@@ -1,0 +1,27 @@
+{
+    "id": "mobius",
+    "name": "Mobius",
+    "fullSentence": "Every end is another beginning——life is a loop.",
+    "keywords": [
+        "END",
+        "BEGINNING",
+        "LOOP",
+        "GAME",
+        "PUZZLE"
+    ],
+    "description": "2025 GMTK GameJame work. （Theme：Loop）",
+    "image": "assets/projects/mobius/cover.png",
+    "year": "2025",
+    "links": [
+        {
+            "label": "bilibili",
+            "url": "https://www.bilibili.com/video/BV1pTtRz5Ekh/?spm_id_from=333.1387.homepage.video_card.click"
+        },
+        {
+            "label": "itch.io",
+            "url": "https://melatonin1.itch.io/mobius"
+        }
+    ],
+    "content": "<p>A platform puzzle game set against the background of a Möbius strip. </p><p>The player navigates through an infinitely looping Möbius strip, where crossing any edge (left, right, top, or bottom) triggers a central symmetrical transmission and gravitational shift, reflecting the endless cyclical nature of this space.</p>",
+    "type": "Game"
+}

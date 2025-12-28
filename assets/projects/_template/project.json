@@ -11,6 +11,7 @@
     ],
     "description": "A brief description of your project that will appear in the gallery view.",
     "image": "assets/projects/your-project-id/cover.jpg",
+    "type": "Project Type",
     "year": "2025",
     "links": [
         {

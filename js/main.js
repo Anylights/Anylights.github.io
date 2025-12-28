@@ -20,11 +20,15 @@ let PROJECTS_DATA = [];
 // List of project IDs to load
 const PROJECT_IDS = [
     'avatar-zero',
-    'flux-state',
-    'void-interface',
+    'mobius',
+    'silent-mountain',
     'farewell',
-    'signal-noise',
-    'midwest-emo-house'
+    'midwest-emo-house',
+    'the-place-where-wind-lives',
+    'run-back-in-time',
+    'faithfall',
+    'syncsprite',
+    'notes-of-hypnotist'
 ];
 
 // Load all project data
@@ -1358,7 +1362,7 @@ function startFinaleWordCycle(sentenceOverlay) {
 
     textEl.classList.add('finale-word');
     const words = [
-        'WHERE','DO','WE','GO','NEXT','FIND','SELF','FREE','LIFE','EXIST','TIME','ICE','HOW','BECOME','ESCAPE','STAY','MOVE','DRIFT','WANDER','SEARCH','FORGET','REMEMBER','RETURN','ARRIVE','INSIDE','OUTSIDE','BETWEEN','EDGE','BORDER','SHELL','CORE','SKIN','MASK','NAME','VOICE','SHAPE','NOW','THEN','STILL','AGAIN','ALREADY','YET','SOON','LATE','PAUSE','LOOP','TRACE','FADING','HERE','THERE','NOWHERE','ANYWHERE','ROOM','FIELD','VOID','PATH','ROAD','SHELTER','ORIGIN','QUIET','HOME','NEVER','DEFINE','END','YOU'
+        'WHERE', 'DO', 'WE', 'GO', 'NEXT', 'FIND', 'SELF', 'FREE', 'LIFE', 'EXIST', 'TIME', 'ICE', 'HOW', 'BECOME', 'ESCAPE', 'STAY', 'MOVE', 'DRIFT', 'WANDER', 'SEARCH', 'FORGET', 'REMEMBER', 'RETURN', 'ARRIVE', 'INSIDE', 'OUTSIDE', 'BETWEEN', 'EDGE', 'BORDER', 'SHELL', 'CORE', 'SKIN', 'MASK', 'NAME', 'VOICE', 'SHAPE', 'NOW', 'THEN', 'STILL', 'AGAIN', 'ALREADY', 'YET', 'SOON', 'LATE', 'PAUSE', 'LOOP', 'TRACE', 'FADING', 'HERE', 'THERE', 'NOWHERE', 'ANYWHERE', 'ROOM', 'FIELD', 'VOID', 'PATH', 'ROAD', 'SHELTER', 'ORIGIN', 'QUIET', 'HOME', 'NEVER', 'DEFINE', 'END', 'YOU'
     ];
     const forward = new THREE.Vector3();
     camera.getWorldDirection(forward);
@@ -2356,18 +2360,20 @@ function setupScrollDrivenTransition(project, nameOverlay, blurOverlay) {
         const detailView = document.getElementById('project-detail-view');
         const titleEl = detailView.querySelector('.project-detail-title');
         const yearEl = detailView.querySelector('.project-detail-year');
+        const typeEl = detailView.querySelector('.project-detail-type');
         const contentEl = detailView.querySelector('.project-detail-content');
         const keywordsEl = detailView.querySelector('.project-detail-keywords');
         const coverImageEl = detailView.querySelector('.project-cover-image');
         const linksEl = detailView.querySelector('.project-links');
 
-        if (!titleEl || !yearEl || !contentEl || !keywordsEl) {
+        if (!titleEl || !yearEl || !typeEl || !contentEl || !keywordsEl) {
             console.error('Required project detail elements not found!');
             return;
         }
 
         titleEl.textContent = project.name;
         yearEl.textContent = project.year || '';
+        typeEl.textContent = project.type || '';
 
         // Populate Content
         if (project.content) {
@@ -2580,6 +2586,7 @@ function showProjectDetail(project) {
     const detailView = document.getElementById('project-detail-view');
     const titleEl = detailView.querySelector('.project-detail-title');
     const yearEl = detailView.querySelector('.project-detail-year');
+    const typeEl = detailView.querySelector('.project-detail-type');
     const contentEl = detailView.querySelector('.project-detail-content');
     const keywordsEl = detailView.querySelector('.project-detail-keywords');
     const coverImageEl = detailView.querySelector('.project-cover-image');
@@ -2587,6 +2594,7 @@ function showProjectDetail(project) {
 
     titleEl.textContent = project.name;
     yearEl.textContent = project.year || '';
+    typeEl.textContent = project.type || '';
 
     // Populate Content
     if (project.content) {
@@ -2664,8 +2672,8 @@ function hideProjectDetail() {
         document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
         if (ui.nav.gallery) ui.nav.gallery.classList.add('active');
 
-        // Keep canvas visible but slightly dimmed, enable pointer events for 3D gallery
-        document.getElementById('canvas-container').style.opacity = '0.7';
+        // Keep canvas fully visible for collected item clarity
+        document.getElementById('canvas-container').style.opacity = '1';
         document.getElementById('canvas-container').style.pointerEvents = 'auto';
 
         // Make sure gallery group is visible
@@ -2966,8 +2974,8 @@ function switchView(viewName) {
             galleryGroup.visible = false;
         }
     } else if (viewName === 'gallery') {
-        // Keep canvas visible but slightly dimmed
-        ui.containers.canvas.style.opacity = '0.7';
+        // Keep canvas fully visible for collected item clarity
+        ui.containers.canvas.style.opacity = '1';
         ui.containers.canvas.style.pointerEvents = 'auto'; // Allow clicks for 3D gallery
         ui.views.gallery.classList.remove('hidden');
         setHintLinesVisible(false);
@@ -3213,8 +3221,8 @@ function createGlowPlane(width, height) {
     const centerX = 256;
     const centerY = 256;
 
-    const planeWidth = width * 2.2;
-    const planeHeight = height * 2.2;
+    const planeWidth = width * 1.6;
+    const planeHeight = height * 1.6;
     const rectWidth = (width / planeWidth) * glowCanvas.width;
     const rectHeight = (height / planeHeight) * glowCanvas.height;
 
@@ -3301,7 +3309,7 @@ function createGalleryCard(project, position) {
     const cardMaterial = new THREE.MeshBasicMaterial({
         color: isCollected ? 0x0c2a30 : 0x0a1a1e,
         transparent: true,
-        opacity: 0.95,
+        opacity: 0,
         side: THREE.DoubleSide
     });
     const card = new THREE.Mesh(cardGeometry, cardMaterial);
@@ -3312,7 +3320,7 @@ function createGalleryCard(project, position) {
     const borderMaterial = new THREE.LineBasicMaterial({
         color: isCollected ? 0x8fffe6 : 0x408F98,
         transparent: true,
-        opacity: isCollected ? 1 : 0.7
+        opacity: 0
     });
     const border = new THREE.LineSegments(borderGeometry, borderMaterial);
     group.add(border);
@@ -3321,6 +3329,7 @@ function createGalleryCard(project, position) {
     if (isCollected) {
         glowPlane = createGlowPlane(GALLERY_CARD_BASE_WIDTH, GALLERY_CARD_BASE_HEIGHT);
         glowPlane.position.z = -0.02;
+        glowPlane.material.opacity = 0;
         group.add(glowPlane);
     }
 
@@ -3366,7 +3375,7 @@ function createGalleryCard(project, position) {
     const maskMaterial = new THREE.MeshBasicMaterial({
         color: 0x0f1a1d,
         transparent: true,
-        opacity: 0.55,
+        opacity: 0.97,
         side: THREE.DoubleSide,
         depthWrite: false
     });

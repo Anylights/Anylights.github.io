@@ -1,0 +1,28 @@
+{
+    "id": "notes-of-hypnotist",
+    "name": "Notes of Hypnotist",
+    "fullSentence": "I know nothing but my heart ashes.",
+    "keywords": [
+        "GAME",
+        "EMO",
+        "PSYCHOLOGY",
+        "HEART",
+        "ASHES",
+        "PUZZLE"
+    ],
+    "description": "A 2D puzzle game developed based on the twelve personality types.",
+    "image": "assets/projects/notes-of-hypnotist/cover.jpg",
+    "year": "2024",
+    "links": [
+        {
+            "label": "bilibili",
+            "url": "https://www.bilibili.com/video/BV1U2zoYLE66/?spm_id_from=333.1387.homepage.video_card.click"
+        },
+        {
+            "label": "download",
+            "url": "https://pan.baidu.com/s/1bDnJBleeRLxu2PZyAo7-TQ?pwd=anvi"
+        }
+    ],
+    "content": "<video controls style=\"width: 100%; border-radius: 8px; margin: 2rem 0; border: 1px solid rgba(64, 143, 152, 0.3); box-shadow: 0 0 20px rgba(0,0,0,0.5);\"><source src=\"assets/projects/notes-of-hypnotist/video.mp4\" type=\"video/mp4\">Your browser does not support the video tag.</video><p>\"Notes of Hypnotist\" is a 2D puzzle game developed based on the twelve personality types.</p><p>Psychologist Bill recently took on a difficult patient - Elliot. Everything was going well at first. He even had a girlfriend named Jenny. But recently, his condition deteriorated rapidly and he even attempted suicide. Bill felt it was time to use \"hypnosis\".</p><p>In the game, Bill needs to overcome numerous psychological barriers and reach the innermost core of the heart. The enemies in the game all belong to one of the twelve personality types. They will follow Bill's actions, but each has its own set of action logic - and these action logics are closely related to their personalities.</p>",
+    "type": "Game"
+}
