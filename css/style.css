@@ -465,6 +465,151 @@ body.menu-open #menu-close {
     pointer-events: none;
 }
 
+/* Find Yourself Overlay */
+#find-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(10, 10, 15, 0.35);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    z-index: 35;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: opacity 0.3s ease;
+    color: #e3e4ff;
+}
+
+#find-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.find-container {
+    width: min(720px, 90%);
+    border: 1px solid rgba(227, 228, 255, 0.22);
+    background: rgba(6, 10, 12, 0.6);
+    padding: 2.5rem 2.5rem 2rem;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+}
+
+.find-header h2 {
+    font-family: 'Doto', sans-serif;
+    font-size: clamp(2rem, 6vw, 3.6rem);
+    margin: 0;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.find-prompt {
+    margin: 0.8rem 0 0;
+    font-family: 'Azeret Mono', monospace;
+    font-size: 0.95rem;
+    opacity: 0.75;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.find-input-row {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin-top: 1.8rem;
+}
+
+#find-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid #e3e4ff;
+    color: #e3e4ff;
+    font-family: 'Azeret Mono', monospace;
+    font-size: 1.2rem;
+    padding: 0.6rem 0;
+    outline: none;
+}
+
+#find-add,
+#find-start,
+#find-cancel {
+    background: transparent;
+    border: 1px solid rgba(227, 228, 255, 0.5);
+    color: #e3e4ff;
+    font-family: 'Azeret Mono', monospace;
+    font-size: 0.85rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.6rem 1.1rem;
+    cursor: pointer;
+    transition: opacity 0.2s ease, background 0.2s ease;
+}
+
+#find-add:hover,
+#find-start:hover,
+#find-cancel:hover {
+    opacity: 1;
+    background: rgba(227, 228, 255, 0.12);
+}
+
+.find-words {
+    margin-top: 1.6rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    min-height: 2.2rem;
+}
+
+.find-word-pill {
+    border: 1px solid rgba(227, 228, 255, 0.4);
+    border-radius: 999px;
+    padding: 0.35rem 0.85rem;
+    font-family: 'Azeret Mono', monospace;
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    opacity: 0.85;
+}
+
+.find-word-pill:hover {
+    opacity: 1;
+    background: rgba(227, 228, 255, 0.12);
+}
+
+.find-actions {
+    margin-top: 2rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.8rem;
+}
+
+#find-start:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+    .find-container {
+        padding: 2rem 1.5rem;
+    }
+
+    .find-input-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #find-add {
+        width: 100%;
+    }
+
+    .find-actions {
+        justify-content: space-between;
+    }
+}
+
 .contact-container {
     display: grid;
     grid-template-columns: 1fr 1fr;
