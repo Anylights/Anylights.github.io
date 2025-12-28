@@ -8,7 +8,7 @@ import { vertexShader, fragmentShader } from './shaders.js';
 
 // --- Configuration ---
 const FONT_FAMILY = '"Azeret Mono", monospace';
-const WORLD_SIZE = 25;
+const WORLD_SIZE = 16;
 const MATCH_THRESHOLD = 3; // Number of keywords needed to unlock a project
 const FIND_SENTENCE = 'Is this yourself in your mind?';
 const DEBUG_FORCE_FINALE = false; // Set true to auto-run the finale for debugging
@@ -100,6 +100,7 @@ const state = {
     currentUnlockingProject: null, // Project being unlocked
     currentProjectDetail: null, // Project being viewed in detail
     finaleTriggered: false, // Only run finale once until reset
+    helpShown: false,
     findYourself: {
         active: false,
         words: [],
@@ -149,6 +150,7 @@ function resetCollectedProjects() {
     state.collectedKeywords = [];
     state.collectedWords = [];
     state.finaleTriggered = false;
+    state.helpShown = false;
     resetFindYourselfState();
 
     // Clear localStorage
@@ -300,9 +302,9 @@ function createKeywords() {
 
         // Random position - fill the entire world space
         // Use WORLD_SIZE to ensure keywords are distributed across the whole looping area
-        mesh.position.x = (Math.random() - 0.5) * WORLD_SIZE * 1.8;
-        mesh.position.y = (Math.random() - 0.5) * WORLD_SIZE * 1.2; // Less vertical spread
-        mesh.position.z = (Math.random() - 0.5) * WORLD_SIZE * 1.8;
+        mesh.position.x = (Math.random() - 0.5) * WORLD_SIZE * 1.4;
+        mesh.position.y = (Math.random() - 0.5) * WORLD_SIZE * 0.9; // Less vertical spread
+        mesh.position.z = (Math.random() - 0.5) * WORLD_SIZE * 1.4;
 
         mesh.userData = {
             originalPos: mesh.position.clone(),
@@ -324,9 +326,9 @@ function normalizeWord(value) {
 
 function createUserWordMesh(word) {
     const mesh = createTextSprite(word);
-    mesh.position.x = (Math.random() - 0.5) * WORLD_SIZE * 1.8;
-    mesh.position.y = (Math.random() - 0.5) * WORLD_SIZE * 1.2;
-    mesh.position.z = (Math.random() - 0.5) * WORLD_SIZE * 1.8;
+    mesh.position.x = (Math.random() - 0.5) * WORLD_SIZE * 1.4;
+    mesh.position.y = (Math.random() - 0.5) * WORLD_SIZE * 0.9;
+    mesh.position.z = (Math.random() - 0.5) * WORLD_SIZE * 1.4;
 
     mesh.userData = {
         originalPos: mesh.position.clone(),
@@ -607,6 +609,7 @@ function onClick(event) {
             keywordGroup.children.forEach(mesh => {
                 gsap.to(mesh.material, { opacity: 0.6, duration: 2 });
             });
+            scheduleFieldHelpOverlay();
         }, 1600);
 
     } else if (state.fieldPhase === 'active') {
@@ -1404,6 +1407,73 @@ function startFinaleWordCycle(sentenceOverlay) {
     });
 
     finaleState.wordTimeline = timeline;
+}
+
+function showFieldHelpOverlay() {
+    if (state.helpShown) return;
+    if (document.getElementById('field-help-overlay')) return;
+    state.helpShown = true;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'field-help-overlay';
+    overlay.className = 'field-help-overlay';
+    overlay.innerHTML = `
+        <div class="field-help-text-only">
+            <div class="help-row">
+                <div class="key-cluster">
+                    <div class="key-row">
+                        <span class="keycap">W</span>
+                    </div>
+                    <div class="key-row">
+                        <span class="keycap">A</span>
+                        <span class="keycap">S</span>
+                        <span class="keycap">D</span>
+                    </div>
+                </div>
+                <div class="help-text">MOVE</div>
+            </div>
+            <div class="help-row">
+                <div class="key-cluster">
+                    <div class="key-row">
+                        <span class="keycap">Q</span>
+                        <span class="keycap">E</span>
+                    </div>
+                </div>
+                <div class="help-text">ROTATE UP / DOWN</div>
+            </div>
+            <div class="help-note">CLICK WORDS WITH MOUSE</div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "power2.out" });
+
+    overlay.addEventListener('click', () => {
+        gsap.to(overlay, {
+            opacity: 0,
+            duration: 0.4,
+            ease: "power2.inOut",
+            onComplete: () => overlay.remove()
+        });
+    });
+}
+
+function scheduleFieldHelpOverlay() {
+    if (state.helpShown) return;
+    const start = performance.now();
+
+    function check() {
+        if (state.helpShown) return;
+        if (state.view === 'field' && state.fieldPhase === 'active' && !particles) {
+            showFieldHelpOverlay();
+            return;
+        }
+        if (performance.now() - start < 8000) {
+            requestAnimationFrame(check);
+        }
+    }
+
+    setTimeout(() => requestAnimationFrame(check), 1200);
 }
 
 function explodeFinaleYou(sentenceOverlay) {
@@ -3717,8 +3787,8 @@ function animate() {
         if (state.keys.d) state.rotationVelocity -= rotAccel;
 
         // Pitch control (Q = look down, E = look up) - unlimited rotation
-        if (state.keys.e) state.pitchVelocity -= pitchAccel; // Look up
-        if (state.keys.q) state.pitchVelocity += pitchAccel; // Look down
+        if (state.keys.q) state.pitchVelocity -= pitchAccel; // Look up (swapped)
+        if (state.keys.e) state.pitchVelocity += pitchAccel; // Look down (swapped)
 
         // Friction
         state.velocity.z *= friction;
@@ -3804,16 +3874,19 @@ function animate() {
 
                 // DISTANCE-BASED OPACITY: Fade out far keywords
                 let targetOpacity = 0.6;
+                const fadeNear = WORLD_SIZE * 0.5;
+                const fadeMid = WORLD_SIZE * 0.9;
+                const fadeFar = WORLD_SIZE * 1.2;
 
-                if (distance > 10 && distance <= 20) {
-                    const t = (distance - 10) / 10;
-                    targetOpacity = 0.6 - t * 0.35;
-                } else if (distance > 20 && distance <= WORLD_SIZE) {
-                    const t = (distance - 20) / (WORLD_SIZE - 20);
-                    targetOpacity = 0.25 - t * 0.17;
+                if (distance > fadeNear && distance <= fadeMid) {
+                    const t = (distance - fadeNear) / (fadeMid - fadeNear);
+                    targetOpacity = 0.6 - t * 0.3;
+                } else if (distance > fadeMid && distance <= WORLD_SIZE) {
+                    const t = (distance - fadeMid) / (WORLD_SIZE - fadeMid);
+                    targetOpacity = 0.3 - t * 0.15;
                 } else if (distance > WORLD_SIZE) {
-                    const t = Math.min(1, (distance - WORLD_SIZE) / 5);
-                    targetOpacity = 0.08 * (1 - t);
+                    const t = Math.min(1, (distance - WORLD_SIZE) / (fadeFar - WORLD_SIZE));
+                    targetOpacity = 0.15 * (1 - t);
                 }
 
                 // Smoothly interpolate opacity
