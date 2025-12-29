@@ -1825,7 +1825,7 @@ function startUnlockSequence(project, matchedWords) {
 
     // Wait for user to see the collected words, then explode
     gsap.delayedCall(2.6, () => {
-        explodeKeywordsToSentence(project, matchedMeshes, null); // No blur overlay passed
+        explodeKeywordsToSentence(project, matchedMeshes, null, { removeMeshes: false }); // No blur overlay passed
     });
 }
 
@@ -2551,6 +2551,7 @@ function completeScrollTransition(project, nameOverlay, blurOverlay, scrollDrive
                             };
                             saveCollectedProjects();
                             create3DGallery();
+                            clearCollectedKeywords();
 
                             // Keep canvas visible
                             document.getElementById('canvas-container').style.opacity = '0.7';
@@ -2721,6 +2722,7 @@ function returnToField({ resetSelection = false } = {}) {
 function clearCollectedKeywords() {
     // Reset all selected keywords
     state.collectedKeywords.forEach(mesh => {
+        mesh.visible = true;
         mesh.userData.selected = false;
         mesh.userData.fixed = false;
         mesh.userData.hinted = false;
