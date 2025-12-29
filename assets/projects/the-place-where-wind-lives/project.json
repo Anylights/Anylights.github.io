@@ -1,0 +1,25 @@
+{
+    "id": "the-place-where-wind-lives",
+    "name": "The Place Where Wind Lives",
+    "fullSentence": "The wind is blowing.",
+    "keywords": [
+        "WIND",
+        "NATURE",
+        "ALIVE",
+        "BREEZE",
+        "GREEN",
+        "SERENITY",
+        "GREEN"
+    ],
+    "description": "A video work depicting what we perceive as the appearance of wind.",
+    "image": "assets/projects/the-place-where-wind-lives/cover.png",
+    "type": "Project Type",
+    "year": "2025",
+    "links": [
+        {
+            "label": "bilibili",
+            "url": "https://www.bilibili.com/video/BV1dkteeJEU5/?spm_id_from=333.1387.homepage.video_card.click&vd_source=51955fc2a3da377e69923b557e6f69d1"
+        }
+    ],
+    "content": "<video controls poster=\"assets/projects/the-place-where-wind-lives/1.png\" style=\"width: 100%; border-radius: 8px; margin: 2rem 0; border: 1px solid rgba(64, 143, 152, 0.3); box-shadow: 0 0 20px rgba(0,0,0,0.5);\"><source src=\"assets/projects/the-place-where-wind-lives/video.mp4\" type=\"video/mp4\">Your browser does not support the video tag.</video>"
+}

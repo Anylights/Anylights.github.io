@@ -1,0 +1,28 @@
+{
+    "id": "sparkle",
+    "name": "Sparkle",
+    "fullSentence": "Everything is alive.",
+    "keywords": [
+        "GAME",
+        "EVERYTHING",
+        "ALIVE",
+        "MECHANICS",
+        "MINIMALISM",
+        "EXPLORATION"
+    ],
+    "description": "A 2025 CiGA GameJam Work, a minimalist small game.",
+    "image": "assets/projects/sparkle/cover.png",
+    "type": "Game",
+    "year": "2025",
+    "links": [
+        {
+            "label": "bilibili",
+            "url": "https://www.bilibili.com/video/BV1bgGFzfE86/?spm_id_from=333.1387.homepage.video_card.click"
+        },
+        {
+            "label": "itch.io",
+            "url": "https://anylight.itch.io/sparkle"
+        }
+    ],
+    "content": "<p>\"Sparkle\"</p><p>It symbolizes brilliance, representing a sudden flash of inspiration in the mind, as well as the enlightening light of the soul.</p><p>In the game, players need to control the \"aura\" formed by the scattered stars, which constantly moves between different objects until reaching the destination.</p><p>Everything is alive and passes on the torch from generation to generation.</p><img src=\"assets/projects/sparkle/1.png\" alt=\"Sparkle image 1\"><img src=\"assets/projects/sparkle/2.png\" alt=\"Sparkle image 2\"><img src=\"assets/projects/sparkle/3.png\" alt=\"Sparkle image 3\"><img src=\"assets/projects/sparkle/4.png\" alt=\"Sparkle image 4\">"
+}

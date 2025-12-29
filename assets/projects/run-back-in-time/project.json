@@ -1,0 +1,24 @@
+{
+    "id": "run-back-in-time",
+    "name": "Run Back in Time",
+    "fullSentence": "For you, a thousand times over.",
+    "keywords": [
+        "UNITY",
+        "CINEMATIC",
+        "LOOP",
+        "ANIMATION",
+        "TIME",
+        "DESTINY"
+    ],
+    "description": "An audiovisual work about time, cycles, death transactions and love. Created using Unity.",
+    "image": "assets/projects/run-back-in-time/cover.png",
+    "type": "Cinematic",
+    "year": "2024",
+    "links": [
+        {
+            "label": "bilibili",
+            "url": "https://www.bilibili.com/video/BV1zageeLEK9/?spm_id_from=333.1387.upload.video_card.click"
+        }
+    ],
+    "content": "<p>\"Would you be willing to go back to the past even at the cost of sacrificing your life?\"</p><p>Unless it is for something more important than life.</p><p>In the endless looping of time and space, they keep making that unhesitating choice.</p><p>An audiovisual work about time, cycles, death transactions and love.</p><p>Created using Unity.</p><img src=\"assets/projects/run-back-in-time/1.png\" alt=\"Run Back in Time image 1\" style=\"width: 33.333%; height: auto;\">"
+}

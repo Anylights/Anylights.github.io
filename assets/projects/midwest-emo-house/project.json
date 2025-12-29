@@ -15,5 +15,5 @@
     "year": "2025",
     "links": [],
     "content": "<p>A scene inspired from the midwest emo music, 'Never Meant' by American Football.</p><p>The house represents a space of nostalgia and memory, reconstructed in a digital void.</p><!-- 本地视频播放器 --><video controls poster=\"assets/projects/midwest-emo-house/cover.png\" style=\"width: 100%; border-radius: 8px; margin: 2rem 0; border: 1px solid rgba(64, 143, 152, 0.3); box-shadow: 0 0 20px rgba(0,0,0,0.5);\"><source src=\"assets/projects/midwest-emo-house/video.mp4\" type=\"video/mp4\">Your browser does not support the video tag.</video>",
-    "type": "Game"
+    "type": "Scene Design"
 }

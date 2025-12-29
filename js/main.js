@@ -21,7 +21,7 @@ let PROJECTS_DATA = [];
 const PROJECT_IDS = [
     'avatar-zero',
     'mobius',
-    'silent-mountain',
+    'sparkle',
     'farewell',
     'midwest-emo-house',
     'the-place-where-wind-lives',
@@ -2375,12 +2375,10 @@ function setupScrollDrivenTransition(project, nameOverlay, blurOverlay) {
         yearEl.textContent = project.year || '';
         typeEl.textContent = project.type || '';
 
-        // Populate Content
-        if (project.content) {
-            contentEl.innerHTML = project.content;
-        } else {
-            contentEl.innerHTML = `<p>${project.description}</p>`;
-        }
+        // Populate Content (description first, then content)
+        const descriptionHtml = project.description ? `<p>${project.description}</p>` : '';
+        const contentHtml = project.content ? project.content : '';
+        contentEl.innerHTML = `${descriptionHtml}${contentHtml}`;
 
         // Populate Links
         if (linksEl) {
@@ -2597,12 +2595,10 @@ function showProjectDetail(project) {
     yearEl.textContent = project.year || '';
     typeEl.textContent = project.type || '';
 
-    // Populate Content
-    if (project.content) {
-        contentEl.innerHTML = project.content;
-    } else {
-        contentEl.innerHTML = `<p>${project.description}</p>`;
-    }
+    // Populate Content (description first, then content)
+    const descriptionHtml = project.description ? `<p>${project.description}</p>` : '';
+    const contentHtml = project.content ? project.content : '';
+    contentEl.innerHTML = `${descriptionHtml}${contentHtml}`;
 
     // Populate Links
     linksEl.innerHTML = '';
@@ -3465,28 +3461,41 @@ function create3DGallery() {
     galleryItems = [];
     galleryTransition = null;
 
-    const projects = PROJECTS_DATA;
+    const projects = PROJECTS_DATA.slice();
+    // Shuffle for a randomized gallery layout
+    for (let i = projects.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [projects[i], projects[j]] = [projects[j], projects[i]];
+    }
+
+    const rowCounts = [3, 4, 3];
     const totalProjects = projects.length;
-    const cols = Math.ceil(Math.sqrt(totalProjects));
-    const rows = Math.ceil(totalProjects / cols);
-    const startX = -((cols - 1) * GALLERY_SPACING_X) / 2;
+    const rows = rowCounts.length;
     const startY = ((rows - 1) * GALLERY_SPACING_Y) / 2;
+    let index = 0;
 
-    projects.forEach((project, i) => {
-        const row = Math.floor(i / cols);
-        const col = i % cols;
-        const stagger = (row % 2 === 0 ? -0.22 : 0.22) * GALLERY_SPACING_X;
-        const jitterX = (Math.random() - 0.5) * 0.4;
-        const jitterY = (Math.random() - 0.5) * 0.3;
-        const x = startX + col * GALLERY_SPACING_X + stagger + jitterX;
-        const y = startY - row * GALLERY_SPACING_Y + jitterY + Math.sin(col * 0.6 + row * 0.4) * 0.3;
-        const colOffset = cols > 1 ? (col - (cols - 1) / 2) / ((cols - 1) / 2) : 0;
-        const z = -Math.abs(colOffset) * 2.1 + (Math.random() - 0.5) * 0.6 + Math.sin(row * 0.7) * 0.3;
-        const position = new THREE.Vector3(x, y, z);
+    rowCounts.forEach((rowCols, row) => {
+        if (index >= totalProjects) return;
+        const rowStartX = -((rowCols - 1) * GALLERY_SPACING_X) / 2;
 
-        const item = createGalleryCard(project, position);
-        galleryGroup.add(item);
-        galleryItems.push(item);
+        for (let col = 0; col < rowCols && index < totalProjects; col += 1) {
+            const project = projects[index];
+            index += 1;
+
+            const centerCol = (rowCols - 1) / 2;
+            const stagger = (col - centerCol) * (GALLERY_SPACING_X * 0.08);
+            const jitterX = (Math.random() - 0.5) * 0.4;
+            const jitterY = (Math.random() - 0.5) * 0.3;
+            const x = rowStartX + col * GALLERY_SPACING_X + stagger + jitterX;
+            const y = startY - row * GALLERY_SPACING_Y + jitterY + Math.sin(col * 0.6 + row * 0.4) * 0.3;
+            const colOffset = rowCols > 1 ? (col - (rowCols - 1) / 2) / ((rowCols - 1) / 2) : 0;
+            const z = -Math.abs(colOffset) * 2.1 + (Math.random() - 0.5) * 0.6 + Math.sin(row * 0.7) * 0.3;
+            const position = new THREE.Vector3(x, y, z);
+
+            const item = createGalleryCard(project, position);
+            galleryGroup.add(item);
+            galleryItems.push(item);
+        }
     });
 
     // Decorative floating particles

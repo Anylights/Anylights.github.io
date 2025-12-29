@@ -1,0 +1,18 @@
+{
+    "id": "syncsprite",
+    "name": "SyncSprite",
+    "fullSentence": "What you’ve lived becomes your sense of direction.",
+    "keywords": [
+        "KNOWLEDGE",
+        "INTERACTION",
+        "SPECTIVE",
+        "TRANSFER",
+        "DIRECTION"
+    ],
+    "description": "An app Design with Philosophical Reflection in the Context of the Future.",
+    "image": "assets/projects/syncsprite/cover.png",
+    "type": "INTERACTIVE DESIGN",
+    "year": "2025",
+    "links": [],
+    "content": "<img src=\"assets/projects/syncsprite/1.png\" alt=\"SyncSprite image 1\">"
+}
