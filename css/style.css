@@ -1371,6 +1371,9 @@ body.menu-open #menu-close {
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 #about-view::before,
@@ -1406,15 +1409,15 @@ body.menu-open #menu-close {
     flex-direction: column;
     align-items: center;
     text-align: center;
-    gap: clamp(2.8rem, 5vw, 4.6rem);
+    gap: clamp(1.6rem, 4vh, 4rem);
     max-width: 780px;
     margin: 0 auto;
-    padding: 3.2rem 0 4.6rem;
+    padding: clamp(1.6rem, 5vh, 3.2rem) 0 clamp(2rem, 6vh, 4.6rem);
 }
 
 .about-avatar {
-    width: 110px;
-    height: 110px;
+    width: clamp(86px, 12vh, 110px);
+    height: clamp(86px, 12vh, 110px);
     border-radius: 50%;
     border: 1px solid rgba(227, 228, 255, 0.45);
     display: flex;
@@ -1537,6 +1540,42 @@ body.menu-open #menu-close {
     stroke-linecap: round;
     stroke-linejoin: round;
     opacity: 0.9;
+}
+
+@media (max-height: 820px) {
+    #main-nav {
+        padding: 1.5rem 1.6rem;
+    }
+
+    #about-view {
+        padding-top: 64px;
+        padding-bottom: 2rem;
+    }
+
+    .about-shell {
+        gap: clamp(1.2rem, 2.8vh, 2.6rem);
+        padding: 1.2rem 0 2rem;
+    }
+
+    .about-quote {
+        font-size: 0.9rem;
+    }
+
+    .about-body {
+        gap: 0.85rem;
+        font-size: 0.95rem;
+        line-height: 1.65;
+    }
+
+    .social-link {
+        width: 52px;
+        height: 52px;
+    }
+
+    .social-link svg {
+        width: 24px;
+        height: 24px;
+    }
 }
 
 @media (max-width: 640px) {
