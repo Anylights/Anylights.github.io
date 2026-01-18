@@ -2539,6 +2539,7 @@ function completeScrollTransition(project, nameOverlay, blurOverlay, scrollDrive
 
                             // Update state
                             state.view = 'projectDetail';
+                            state.previousView = 'field'; // Ensure we return to field
                             state.currentProjectDetail = project;
                             state.fieldPhase = 'projectReveal';
 
@@ -2971,6 +2972,10 @@ function switchView(viewName) {
         if (galleryGroup) {
             galleryGroup.visible = false;
         }
+        
+        // Check for finale trigger
+        maybeTriggerFinale();
+
     } else if (viewName === 'gallery') {
         // Keep canvas fully visible for collected item clarity
         ui.containers.canvas.style.opacity = '1';
